@@ -1,0 +1,24 @@
+# Node
+node_modules/
+
+# Builds
+dist/
+frontend/dist/
+backend/dist/
+
+# Env files
+.env
+backend/.env
+frontend/.env.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# SQLite db
+backend/src/coaching.db
+backend/src/*.db
+
+# OS
+.DS_Store
+Thumbs.db
