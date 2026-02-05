@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import '../styles/Header.css';
 import vbLogo from '../assets/vb-logo.png';
@@ -11,6 +11,7 @@ interface HeaderProps {
 
 function Header({ showBackButton = false, backTo = '/dashboard', title }: HeaderProps) {
   const navigate = useNavigate();
+  const location = useLocation();
   const user = useAuthStore((state) => state.user);
   const logout = useAuthStore((state) => state.logout);
 
@@ -18,6 +19,28 @@ function Header({ showBackButton = false, backTo = '/dashboard', title }: Header
     logout();
     navigate('/login');
   };
+
+  const isActive = (path: string) => {
+    return location.pathname === path || location.pathname.startsWith(path + '/');
+  };
+
+  // Navigation items pour Coach
+  const coachNavItems = [
+    { path: '/dashboard', label: 'Tableau de bord', icon: '📊' },
+    { path: '/athletes', label: 'Mes Athlètes', icon: '👥' },
+    { path: '/session-builder', label: 'Créer Séance', icon: '🏃' },
+    { path: '/invitations', label: 'Invitations', icon: '✉️' },
+    { path: '/devices', label: 'Appareils', icon: '🔗' },
+  ];
+
+  // Navigation items pour Athlète
+  const athleteNavItems = [
+    { path: '/dashboard', label: 'Mes Séances', icon: '📅' },
+    { path: '/profile', label: 'Mon Profil', icon: '👤' },
+    { path: '/devices', label: 'Appareils', icon: '🔗' },
+  ];
+
+  const navItems = user?.role === 'coach' ? coachNavItems : athleteNavItems;
 
   return (
     <header className="app-header">
@@ -28,21 +51,27 @@ function Header({ showBackButton = false, backTo = '/dashboard', title }: Header
               ← Retour
             </button>
           )}
-          <div className="logo-section">
+          <div className="logo-section" onClick={() => navigate('/dashboard')} style={{ cursor: 'pointer' }}>
             <img src={vbLogo} alt="VB Coaching" className="logo-image" />
           </div>
           {title && <h2 className="page-title">{title}</h2>}
         </div>
 
+        <nav className="main-nav">
+          {navItems.map((item) => (
+            <button
+              key={item.path}
+              className={`nav-item ${isActive(item.path) ? 'active' : ''}`}
+              onClick={() => navigate(item.path)}
+            >
+              <span className="nav-icon">{item.icon}</span>
+              <span className="nav-label">{item.label}</span>
+            </button>
+          ))}
+        </nav>
+
         <div className="header-right">
-          <button 
-            className="btn-devices" 
-            onClick={() => navigate('/devices')}
-            title="Mes appareils connectés"
-          >
-            🔗 Appareils
-          </button>
-          <div className="user-info">
+          <div className="user-info" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }}>
             <div className="user-avatar">
               {user?.name?.charAt(0).toUpperCase()}
             </div>

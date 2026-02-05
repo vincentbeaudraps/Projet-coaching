@@ -1,22 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../store/authStore';
 import { athletesService, sessionsService, performanceService } from '../services/api';
+import { Athlete } from '../types/index';
 import Header from '../components/Header';
+import AthleteMetrics from '../components/AthleteMetrics';
 import '../styles/AthleteProfile.css';
-
-interface Athlete {
-  id: string;
-  user_id: string;
-  age: number | null;
-  level: string | null;
-  goals: string | null;
-  user_name?: string;
-  user_email?: string;
-}
 
 function AthleteProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
   const [athlete, setAthlete] = useState<Athlete | null>(null);
   const [sessions, setSessions] = useState<any[]>([]);
   const [performances, setPerformances] = useState<any[]>([]);
@@ -30,30 +24,45 @@ function AthleteProfilePage() {
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [showMetricsModal, setShowMetricsModal] = useState(false);
+
+  // Pour les athlètes qui consultent leur propre profil
+  const isOwnProfile = !id || (user?.role === 'athlete');
 
   useEffect(() => {
     loadAthleteData();
   }, [id]);
 
   const loadAthleteData = async () => {
-    if (!id) return;
-    
     try {
       setLoading(true);
-      const [athleteRes, sessionsRes, performancesRes] = await Promise.all([
-        athletesService.getById(id),
-        sessionsService.getForAthlete(id),
-        performanceService.getForAthlete(id)
+      
+      let athleteData;
+      
+      // Si pas d'ID ou utilisateur athlète, charger son propre profil
+      if (isOwnProfile) {
+        const athleteRes = await athletesService.getMe();
+        athleteData = athleteRes.data;
+      } else {
+        const athleteRes = await athletesService.getById(id!);
+        athleteData = athleteRes.data;
+      }
+
+      setAthlete(athleteData);
+      
+      // Charger les séances et performances
+      const [sessionsRes, performancesRes] = await Promise.all([
+        sessionsService.getForAthlete(athleteData.id),
+        performanceService.getForAthlete(athleteData.id)
       ]);
       
-      setAthlete(athleteRes.data);
       setSessions(sessionsRes.data);
       setPerformances(performancesRes.data);
       
       setEditData({
-        age: athleteRes.data.age?.toString() || '',
-        level: athleteRes.data.level || '',
-        goals: athleteRes.data.goals || ''
+        age: athleteData.age?.toString() || '',
+        level: athleteData.level || '',
+        goals: athleteData.goals || ''
       });
     } catch (err: any) {
       setError('Erreur lors du chargement du profil');
@@ -65,10 +74,10 @@ function AthleteProfilePage() {
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!id) return;
+    if (!athlete?.id) return;
 
     try {
-      await athletesService.update(id, {
+      await athletesService.update(athlete.id, {
         age: editData.age ? parseInt(editData.age) : null,
         level: editData.level || null,
         goals: editData.goals || null
@@ -83,11 +92,11 @@ function AthleteProfilePage() {
   };
 
   const handleDelete = async () => {
-    if (!id) return;
+    if (!athlete?.id) return;
     
     setDeleting(true);
     try {
-      await athletesService.delete(id);
+      await athletesService.delete(athlete.id);
       navigate('/athletes');
     } catch (err: any) {
       setError('Erreur lors de la suppression');
@@ -96,44 +105,90 @@ function AthleteProfilePage() {
     }
   };
 
+  const handleMetricsUpdate = () => {
+    loadAthleteData(); // Recharger les données après mise à jour des métriques
+    setShowMetricsModal(false);
+  };
+
+  const formatPace = (pace?: string) => {
+    return pace || 'Non renseigné';
+  };
+
   if (loading) {
-    return <div className="loading-container">Chargement...</div>;
+    return (
+      <div className="loading-container">
+        <Header showBackButton={user?.role === 'coach'} backTo="/athletes" />
+        <div className="loading-content">Chargement...</div>
+      </div>
+    );
   }
 
   if (!athlete) {
-    return <div className="error-container">Athlète non trouvé</div>;
+    return (
+      <div className="error-container">
+        <Header showBackButton={user?.role === 'coach'} backTo="/athletes" />
+        <div className="error-content">Athlète non trouvé</div>
+      </div>
+    );
   }
+
+  const isCoach = user?.role === 'coach';
+  const backPath = isCoach ? '/athletes' : '/dashboard';
 
   return (
     <div className="athlete-profile-container">
-      <Header showBackButton backTo="/athletes" title={`Profil de ${athlete.user_name}`} />
+      <Header showBackButton backTo={backPath} title={isOwnProfile ? 'Mon Profil' : `Profil de ${athlete.user_name || athlete.name}`} />
 
       {error && <div className="error-message">{error}</div>}
 
       {/* En-tête du profil */}
       <div className="profile-header">
         <div className="profile-avatar-large">
-          {athlete.user_name?.charAt(0).toUpperCase() || '?'}
+          {(athlete.user_name || athlete.name)?.charAt(0).toUpperCase() || '?'}
         </div>
         <div className="profile-info">
-          <h1>{athlete.user_name}</h1>
-          <p className="profile-email">{athlete.user_email}</p>
+          <h1>{athlete.user_name || athlete.name}</h1>
+          <p className="profile-email">{athlete.user_email || athlete.email}</p>
         </div>
         <div className="profile-actions">
-          <button 
-            className="btn-edit"
-            onClick={() => setIsEditing(!isEditing)}
-          >
-            {isEditing ? '✕ Annuler' : '✏️ Modifier'}
-          </button>
-          <button 
-            className="btn-delete"
-            onClick={() => setShowDeleteConfirm(true)}
-          >
-            🗑️ Supprimer
-          </button>
+          {isCoach && (
+            <>
+              <button 
+                className="btn-metrics"
+                onClick={() => setShowMetricsModal(true)}
+                title="Gérer les métriques physiologiques"
+              >
+                📊 Métriques
+              </button>
+              <button 
+                className="btn-edit"
+                onClick={() => setIsEditing(!isEditing)}
+              >
+                {isEditing ? '✕ Annuler' : '✏️ Modifier'}
+              </button>
+              <button 
+                className="btn-delete"
+                onClick={() => setShowDeleteConfirm(true)}
+              >
+                🗑️ Supprimer
+              </button>
+            </>
+          )}
         </div>
       </div>
+
+      {/* Modal de métriques */}
+      {showMetricsModal && athlete && (
+        <div className="modal-overlay" onClick={() => setShowMetricsModal(false)}>
+          <div className="modal-content-large" onClick={(e) => e.stopPropagation()}>
+            <AthleteMetrics
+              athlete={athlete}
+              onClose={() => setShowMetricsModal(false)}
+              onUpdate={handleMetricsUpdate}
+            />
+          </div>
+        </div>
+      )}
 
       {/* Modal de confirmation de suppression */}
       {showDeleteConfirm && (
@@ -219,6 +274,90 @@ function AthleteProfilePage() {
 
       {/* Informations actuelles */}
       <div className="profile-content">
+        {/* Métriques Physiologiques */}
+        <div className="profile-section">
+          <h2>📊 Métriques Physiologiques</h2>
+          {athlete.max_heart_rate || athlete.vma || athlete.vo2max ? (
+            <div className="metrics-grid">
+              {athlete.max_heart_rate && (
+                <div className="metric-card">
+                  <div className="metric-icon">❤️</div>
+                  <div className="metric-details">
+                    <span className="metric-label">FC Max</span>
+                    <span className="metric-value">{athlete.max_heart_rate} bpm</span>
+                  </div>
+                </div>
+              )}
+              {athlete.resting_heart_rate && (
+                <div className="metric-card">
+                  <div className="metric-icon">💤</div>
+                  <div className="metric-details">
+                    <span className="metric-label">FC Repos</span>
+                    <span className="metric-value">{athlete.resting_heart_rate} bpm</span>
+                  </div>
+                </div>
+              )}
+              {athlete.vma && (
+                <div className="metric-card">
+                  <div className="metric-icon">🏃</div>
+                  <div className="metric-details">
+                    <span className="metric-label">VMA</span>
+                    <span className="metric-value">{athlete.vma} km/h</span>
+                  </div>
+                </div>
+              )}
+              {athlete.vo2max && (
+                <div className="metric-card">
+                  <div className="metric-icon">🫁</div>
+                  <div className="metric-details">
+                    <span className="metric-label">VO2 Max</span>
+                    <span className="metric-value">{athlete.vo2max} ml/kg/min</span>
+                  </div>
+                </div>
+              )}
+              {athlete.weight && (
+                <div className="metric-card">
+                  <div className="metric-icon">⚖️</div>
+                  <div className="metric-details">
+                    <span className="metric-label">Poids</span>
+                    <span className="metric-value">{athlete.weight} kg</span>
+                  </div>
+                </div>
+              )}
+              {athlete.lactate_threshold_pace && (
+                <div className="metric-card">
+                  <div className="metric-icon">⚡</div>
+                  <div className="metric-details">
+                    <span className="metric-label">Seuil Lactique</span>
+                    <span className="metric-value">{formatPace(athlete.lactate_threshold_pace)}</span>
+                  </div>
+                </div>
+              )}
+            </div>
+          ) : (
+            <div className="empty-metrics">
+              <p>Aucune métrique renseignée</p>
+              {isCoach && (
+                <button 
+                  className="btn-add-metrics"
+                  onClick={() => setShowMetricsModal(true)}
+                >
+                  ➕ Ajouter des métriques
+                </button>
+              )}
+            </div>
+          )}
+          {athlete.metrics_updated_at && (
+            <p className="metrics-update-date">
+              Dernière mise à jour : {new Date(athlete.metrics_updated_at).toLocaleDateString('fr-FR', { 
+                day: 'numeric', 
+                month: 'long', 
+                year: 'numeric' 
+              })}
+            </p>
+          )}
+        </div>
+
         <div className="profile-section">
           <h2>📋 Informations</h2>
           <div className="info-grid">

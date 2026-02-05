@@ -102,6 +102,22 @@ function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/profile"
+          element={
+            <ProtectedRoute>
+              <AthleteProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/session-builder"
+          element={
+            <CoachOnlyRoute>
+              <SessionBuilderPage />
+            </CoachOnlyRoute>
+          }
+        />
         <Route path="/oauth/:platform/callback" element={<OAuthCallbackPage />} />
         <Route
           path="/coach/*"
