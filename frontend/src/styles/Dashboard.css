@@ -1,3 +1,168 @@
+/* Dashboard Wrapper */
+.dashboard-wrapper {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.dashboard-container {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 2rem;
+}
+
+.dashboard-welcome {
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.dashboard-welcome h1 {
+  font-size: 2.5rem;
+  color: #1a1a1a;
+  margin-bottom: 0.5rem;
+}
+
+.dashboard-welcome .subtitle {
+  font-size: 1.1rem;
+  color: #666;
+}
+
+/* Upload Section */
+.upload-section {
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+  margin-bottom: 2rem;
+  flex-wrap: wrap;
+}
+
+.btn-upload {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  font-size: 1rem;
+}
+
+.btn-upload:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-devices {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  padding: 0.75rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  border: none;
+  font-size: 1rem;
+}
+
+.btn-devices:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
+}
+
+/* Calendar Section */
+.calendar-section {
+  width: 100%;
+}
+
+.calendars-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 2rem;
+  margin-top: 2rem;
+}
+
+.calendar-container {
+  background: white;
+  border-radius: 12px;
+  padding: 1.5rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.calendar-header {
+  margin-bottom: 1rem;
+  border-bottom: 2px solid #f0f0f0;
+  padding-bottom: 1rem;
+}
+
+.calendar-header h2 {
+  font-size: 1.5rem;
+  color: #1a1a1a;
+  margin-bottom: 0.5rem;
+}
+
+.calendar-subtitle {
+  font-size: 0.9rem;
+  color: #666;
+}
+
+/* Performance View */
+.performance-view {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.performance-view h2 {
+  font-size: 1.8rem;
+  color: #1a1a1a;
+  margin-bottom: 1.5rem;
+}
+
+.performance-card {
+  background: #f8f9fa;
+  border-left: 4px solid #667eea;
+  padding: 1rem;
+  margin-bottom: 1rem;
+  border-radius: 8px;
+}
+
+/* Messages View */
+.messages-view {
+  background: white;
+  border-radius: 12px;
+  padding: 2rem;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  text-align: center;
+}
+
+/* Responsive */
+@media (max-width: 1024px) {
+  .calendars-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 768px) {
+  .dashboard-container {
+    padding: 1rem;
+  }
+
+  .dashboard-welcome h1 {
+    font-size: 1.8rem;
+  }
+
+  .upload-section {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .btn-upload,
+  .btn-devices {
+    width: 100%;
+  }
+}
+
 .dashboard-container {
   display: flex;
   flex-direction: column;
@@ -243,4 +408,929 @@
   font-size: 12px;
   color: #007bff;
   cursor: pointer;
+}
+
+/* Sessions Header */
+.sessions-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 25px;
+  padding: 20px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+}
+
+.sessions-header h2 {
+  margin: 0;
+  color: white;
+  font-size: 24px;
+  font-weight: 600;
+}
+
+.btn-create-advanced-session {
+  padding: 12px 24px;
+  background: white;
+  color: #667eea;
+  border: none;
+  border-radius: 8px;
+  font-size: 15px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+}
+
+.btn-create-advanced-session:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+  background: #f8f9fa;
+}
+
+/* === Athlete Selector === */
+.calendar-container {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.athlete-selector {
+  background: white;
+  padding: 20px;
+  border-radius: 8px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+
+.athlete-selector label {
+  font-weight: 600;
+  color: #333;
+  font-size: 16px;
+}
+
+.athlete-select-dropdown {
+  padding: 10px 15px;
+  border: 2px solid #ddd;
+  border-radius: 6px;
+  font-size: 14px;
+  min-width: 200px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.athlete-select-dropdown:focus {
+  outline: none;
+  border-color: #007bff;
+  box-shadow: 0 0 0 3px rgba(0, 123, 255, 0.1);
+}
+
+.selected-athlete-info {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  margin-left: auto;
+}
+
+.athlete-badge {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.sessions-count {
+  background: #f0f0f0;
+  padding: 6px 12px;
+  border-radius: 15px;
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+/* === Enhanced Calendar === */
+.calendar-view {
+  background: white;
+  padding: 25px;
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+}
+
+.calendar-view h2 {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #333;
+  text-transform: capitalize;
+}
+
+.calendar-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.calendar-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+  margin-bottom: 10px;
+}
+
+.calendar-day-header {
+  text-align: center;
+  font-weight: 600;
+  color: #666;
+  padding: 10px;
+  background: #f8f9fa;
+  border-radius: 4px;
+}
+
+.calendar-body {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 5px;
+}
+
+.calendar-cell {
+  min-height: 100px;
+  border: 1px solid #e0e0e0;
+  border-radius: 6px;
+  padding: 8px;
+  background: white;
+  transition: all 0.2s;
+}
+
+.calendar-cell:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  transform: translateY(-2px);
+}
+
+.calendar-cell.empty {
+  background: #f9f9f9;
+  border: 1px solid #f0f0f0;
+}
+
+.day-number {
+  font-weight: 600;
+  color: #333;
+  margin-bottom: 8px;
+}
+
+.day-sessions {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.session-badge {
+  background: #f8f9fa;
+  border-left: 3px solid #007bff;
+  padding: 4px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  font-size: 11px;
+}
+
+.session-badge:hover {
+  background: #e9ecef;
+  transform: translateX(2px);
+}
+
+.session-time {
+  display: block;
+  font-weight: 600;
+  color: #495057;
+  margin-bottom: 2px;
+}
+
+.session-title-short {
+  display: block;
+  color: #6c757d;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* === Session Modal === */
+.session-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  animation: fadeIn 0.2s;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+.session-modal {
+  background: white;
+  border-radius: 12px;
+  max-width: 600px;
+  width: 90%;
+  max-height: 80vh;
+  overflow-y: auto;
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+  animation: slideUp 0.3s;
+}
+
+@keyframes slideUp {
+  from {
+    transform: translateY(50px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.session-modal-header {
+  padding: 20px 25px;
+  border-bottom: 2px solid #f0f0f0;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border-radius: 12px 12px 0 0;
+}
+
+.session-modal-header h3 {
+  margin: 0;
+  font-size: 20px;
+}
+
+.close-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: none;
+  color: white;
+  font-size: 24px;
+  cursor: pointer;
+  width: 35px;
+  height: 35px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.close-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  transform: rotate(90deg);
+}
+
+.session-modal-body {
+  padding: 25px;
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.session-detail {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.session-detail strong {
+  color: #495057;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.session-detail span,
+.session-detail p {
+  color: #6c757d;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+.intensity-badge {
+  display: inline-block;
+  padding: 4px 12px;
+  border-radius: 12px;
+  color: white;
+  font-weight: 600;
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.blocks-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.block-item {
+  background: #f8f9fa;
+  border-left: 4px solid #007bff;
+  padding: 12px 15px;
+  border-radius: 6px;
+  display: grid;
+  grid-template-columns: auto 1fr auto auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.block-number {
+  font-weight: 700;
+  color: #007bff;
+  font-size: 13px;
+}
+
+.block-type {
+  color: #495057;
+  font-weight: 600;
+  font-size: 13px;
+}
+
+.block-duration,
+.block-pace {
+  color: #6c757d;
+  font-size: 12px;
+  background: white;
+  padding: 4px 8px;
+  border-radius: 4px;
+}
+
+/* === Dual Calendar View === */
+.dual-calendar-view {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 20px;
+  margin-top: 20px;
+}
+
+.calendar-column {
+  min-width: 0;
+}
+
+.calendar-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 15px;
+}
+
+.calendar-badge {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.calendar-badge.completed-badge {
+  background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+  color: white;
+}
+
+/* === Upload GPX Section === */
+.upload-gpx-section {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: 15px;
+}
+
+.btn-upload-gpx {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s;
+  border: none;
+}
+
+.btn-upload-gpx:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.uploading-indicator {
+  color: #667eea;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+/* === Activity Badges === */
+.activity-badge {
+  background: #ffffff;
+  border-left-width: 4px !important;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+}
+
+.activity-icon {
+  font-size: 16px;
+}
+
+.activity-info {
+  font-size: 11px;
+  font-weight: 600;
+  color: #495057;
+}
+
+/* === Activity Modal === */
+.activity-modal .session-modal-body {
+  padding: 20px 25px;
+}
+
+.activity-type-badge {
+  display: inline-block;
+  color: white;
+  padding: 6px 16px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-bottom: 15px;
+  letter-spacing: 0.5px;
+}
+
+.activity-stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 12px;
+  margin: 20px 0;
+}
+
+.stat-box {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+  border-radius: 10px;
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  transition: all 0.3s;
+}
+
+.stat-box:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+}
+
+.stat-icon {
+  font-size: 24px;
+}
+
+.stat-content {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.stat-label {
+  font-size: 11px;
+  color: #6c757d;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.stat-value {
+  font-size: 16px;
+  color: #2c3e50;
+  font-weight: 700;
+}
+
+.source-badge {
+  background: #e9ecef;
+  padding: 4px 12px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: #495057;
+  text-transform: capitalize;
+}
+
+/* Completed Activities Calendar Specific */
+.completed-activities-calendar .calendar-cell {
+  background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 10%);
+}
+
+.completed-activities-calendar .calendar-cell:hover {
+  background: linear-gradient(135deg, #e8eef5 0%, #b5c4db 10%);
+}
+
+/* === Add Activity Form === */
+.btn-add-activity {
+  background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s;
+  margin-left: 10px;
+}
+
+.btn-add-activity:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(245, 87, 108, 0.4);
+}
+
+.add-activity-form-container {
+  background: white;
+  border-radius: 12px;
+  padding: 25px;
+  margin-top: 20px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+}
+
+.form-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 15px;
+  border-bottom: 2px solid #f0f0f0;
+}
+
+.form-header h3 {
+  margin: 0;
+  color: #2c3e50;
+  font-size: 18px;
+}
+
+.btn-close-form {
+  background: #f8f9fa;
+  border: none;
+  color: #6c757d;
+  font-size: 20px;
+  cursor: pointer;
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.btn-close-form:hover {
+  background: #e9ecef;
+  transform: rotate(90deg);
+}
+
+.add-activity-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.form-group label {
+  font-weight: 600;
+  color: #495057;
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.form-group input,
+.form-group select,
+.form-group textarea {
+  padding: 10px 12px;
+  border: 2px solid #e9ecef;
+  border-radius: 6px;
+  font-size: 14px;
+  transition: all 0.3s;
+  font-family: inherit;
+}
+
+.form-group input:focus,
+.form-group select:focus,
+.form-group textarea:focus {
+  outline: none;
+  border-color: #667eea;
+  box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+}
+
+.form-group textarea {
+  resize: vertical;
+  min-height: 80px;
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 15px;
+  border-top: 2px solid #f0f0f0;
+}
+
+.btn-cancel {
+  background: #f8f9fa;
+  color: #6c757d;
+  padding: 10px 20px;
+  border-radius: 6px;
+  border: 2px solid #e9ecef;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.btn-cancel:hover {
+  background: #e9ecef;
+}
+
+.btn-submit {
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  padding: 10px 24px;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  transition: all 0.3s;
+}
+
+.btn-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+}
+
+.btn-submit:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* Responsive pour formulaire */
+@media (max-width: 768px) {
+  .form-row {
+    grid-template-columns: 1fr;
+  }
+  
+  .add-activity-form-container {
+    padding: 20px 15px;
+  }
+  
+  .form-actions {
+    flex-direction: column;
+  }
+  
+  .btn-cancel,
+  .btn-submit {
+    width: 100%;
+  }
+}
+
+/* Responsive pour dual calendar */
+@media (max-width: 1200px) {
+  .dual-calendar-view {
+    grid-template-columns: 1fr;
+  }
+  
+  .calendar-column:first-child {
+    margin-bottom: 20px;
+  }
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .athlete-selector {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .selected-athlete-info {
+    margin-left: 0;
+  }
+
+  .calendar-cell {
+    min-height: 80px;
+  }
+
+  .session-badge {
+    font-size: 10px;
+  }
+
+  .block-item {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+
+  .upload-gpx-section {
+    margin-left: 0;
+    margin-top: 10px;
+    width: 100%;
+  }
+  
+  .btn-upload-gpx {
+    width: 100%;
+    text-align: center;
+  }
+  
+  .activity-stats-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  
+  .stat-box {
+    padding: 12px;
+  }
+  
+  .stat-icon {
+    font-size: 20px;
+  }
+  
+  .stat-value {
+    font-size: 14px;
+  }
+}
+
+/* === Export Buttons === */
+.export-section {
+  margin-top: 25px;
+  padding-top: 20px;
+  border-top: 2px solid #f0f0f0;
+}
+
+.export-section strong {
+  display: block;
+  margin-bottom: 15px;
+  color: #2c3e50;
+  font-size: 15px;
+}
+
+.export-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.export-btn {
+  padding: 12px 16px;
+  border: 2px solid;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 13px;
+  transition: all 0.3s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+
+.export-btn:hover:not(:disabled) {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.export-btn-garmin {
+  background: linear-gradient(135deg, #007CC3 0%, #005f9e 100%);
+  color: white;
+  border-color: #007CC3;
+}
+
+.export-btn-coros {
+  background: linear-gradient(135deg, #FF6B35 0%, #d94e28 100%);
+  color: white;
+  border-color: #FF6B35;
+}
+
+.export-btn-text {
+  background: linear-gradient(135deg, #6c757d 0%, #495057 100%);
+  color: white;
+  border-color: #6c757d;
+}
+
+.export-btn-md {
+  background: linear-gradient(135deg, #28a745 0%, #1e7e34 100%);
+  color: white;
+  border-color: #28a745;
+}
+
+.export-loading {
+  text-align: center;
+  color: #667eea;
+  font-weight: 600;
+  font-size: 14px;
+  margin: 10px 0;
+  animation: pulse 1.5s infinite;
+}
+
+@keyframes pulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+.export-help {
+  background: #f8f9fa;
+  border-left: 4px solid #667eea;
+  padding: 15px;
+  border-radius: 6px;
+  margin-top: 15px;
+}
+
+.export-help p {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.8;
+  color: #495057;
+}
+
+.export-help strong {
+  color: #2c3e50;
+  display: inline;
+  margin: 0;
+  font-size: 12px;
+}
+
+/* Responsive export buttons */
+@media (max-width: 768px) {
+  .export-buttons {
+    grid-template-columns: 1fr;
+  }
+  
+  .export-btn {
+    font-size: 12px;
+    padding: 10px 12px;
+  }
+}
+
+/* Athlete Metrics in Cards */
+.athlete-metrics-summary {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 12px 0;
+  padding-top: 12px;
+  border-top: 1px solid #e0e0e0;
+}
+
+.athlete-metrics-summary span {
+  background: #f5f5f5;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: #666;
+  font-weight: 500;
+}
+
+.metrics-button {
+  width: 100%;
+  margin-top: 12px;
+  padding: 10px 16px;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.3s;
+}
+
+.metrics-button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
 }

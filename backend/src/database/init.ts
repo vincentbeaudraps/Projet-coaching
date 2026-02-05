@@ -48,6 +48,8 @@ export async function initializeDatabase() {
         intensity VARCHAR(50),
         start_date TIMESTAMP NOT NULL,
         end_date TIMESTAMP,
+        blocks TEXT,
+        notes TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -59,7 +61,7 @@ export async function initializeDatabase() {
         sender_id TEXT NOT NULL REFERENCES users(id),
         receiver_id TEXT NOT NULL REFERENCES users(id),
         content TEXT NOT NULL,
-        read BOOLEAN DEFAULT 0,
+        read BOOLEAN DEFAULT FALSE,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
@@ -76,6 +78,19 @@ export async function initializeDatabase() {
         max_heart_rate INT,
         notes TEXT,
         recorded_at TIMESTAMP NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Invitation codes table
+    await client.query(`
+      CREATE TABLE IF NOT EXISTS invitation_codes (
+        id TEXT PRIMARY KEY,
+        code VARCHAR(20) UNIQUE NOT NULL,
+        coach_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        used BOOLEAN DEFAULT FALSE,
+        used_by TEXT REFERENCES users(id),
+        expires_at TIMESTAMP,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);

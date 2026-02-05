@@ -1,250 +1,224 @@
-# 📑 INDEX - Coach Running Platform
+# 📚 INDEX DE LA DOCUMENTATION
 
-Bienvenue ! Voici comment naviguer dans ce projet complet.
-
-## 🚀 Pour Démarrer Rapidement
-
-**Commencez par :** [QUICKSTART.md](QUICKSTART.md)
-- 5 étapes simples
-- 10 minutes pour démarrer
-- Windows/macOS/Linux
-
-**Alternative avec Docker :** [DOCKER.md](DOCKER.md)
-- 1 commande : `docker-compose up`
-- Tout s'installe automatiquement
-
-## 📚 Documentation
-
-### Vue d'Ensemble
-- **[SUMMARY.md](SUMMARY.md)** - Résumé complet du projet
-- **[COMPLETION.md](COMPLETION.md)** - Ce qui a été livré
-- **[README.md](README.md)** - Guide principal (1000+ lignes)
-
-### Pour Développer
-- **[API.md](API.md)** - Documentation de tous les endpoints (500+ lignes)
-- **[STRUCTURE.md](STRUCTURE.md)** - Arborescence détaillée du projet
-- **[backend/README.md](backend/README.md)** - Spécifique au backend
-- **[frontend/README.md](frontend/README.md)** - Spécifique au frontend
-
-### Pour Déployer
-- **[DOCKER.md](DOCKER.md)** - Déploiement avec Docker
-- **[.github/copilot-instructions.md](.github/copilot-instructions.md)** - Notes GitHub Copilot
-
-## 🏗️ Structure du Projet
-
-```
-Projet coaching/
-│
-├── 📖 Documentation (Commencer ici)
-│   ├── README.md          ← Guide complet
-│   ├── QUICKSTART.md      ← Démarrage rapide
-│   ├── SUMMARY.md         ← Résumé du projet
-│   ├── API.md             ← Endpoints documentation
-│   └── STRUCTURE.md       ← Arborescence détaillée
-│
-├── 🖥️ Backend API (Node.js/Express)
-│   ├── README.md          ← Backend guide
-│   ├── package.json       ← Dépendances
-│   ├── .env.example       ← Variables d'env
-│   └── src/
-│       ├── routes/        ← 5 routers API
-│       ├── database/      ← PostgreSQL setup
-│       └── middleware/    ← Auth JWT
-│
-├── 💻 Frontend (React/TypeScript)
-│   ├── README.md          ← Frontend guide
-│   ├── package.json       ← Dépendances
-│   ├── vite.config.ts     ← Vite config
-│   └── src/
-│       ├── pages/         ← 4 pages
-│       ├── components/    ← 4 composants
-│       └── services/      ← API client
-│
-├── 🐳 Infrastructure
-│   ├── docker-compose.yml ← Services Docker
-│   ├── DOCKER.md          ← Docker guide
-│   ├── setup.bat          ← Setup Windows
-│   └── setup.sh           ← Setup Linux/macOS
-│
-└── 🧪 Tests
-    └── test.sh            ← Script de test API
-```
-
-## 🎯 Parcours par Rôle
-
-### Je suis un **Nouveau Développeur**
-1. Lire [QUICKSTART.md](QUICKSTART.md) (10 min)
-2. Lancer l'app (5 min)
-3. Tester l'authentification (5 min)
-4. Explorer [API.md](API.md) (15 min)
-
-### Je suis un **Developer Backend**
-1. Lire [backend/README.md](backend/README.md)
-2. Consulter [API.md](API.md)
-3. Explorer `backend/src/routes/`
-4. Modifier/ajouter des endpoints
-
-### Je suis un **Developer Frontend**
-1. Lire [frontend/README.md](frontend/README.md)
-2. Consulter [API.md](API.md) pour les endpoints
-3. Explorer `frontend/src/components/`
-4. Modifier/ajouter des pages
-
-### Je veux **Déployer**
-1. Lire [DOCKER.md](DOCKER.md)
-2. Exécuter `docker-compose up`
-3. Configurer le domaine
-4. Mettre en place les sauvegardes
-
-### Je cherche de **l'Aide**
-1. Chercher dans README.md
-2. Voir section Troubleshooting dans QUICKSTART.md
-3. Vérifier API.md si problème d'endpoint
-4. Regarder les logs : `npm run dev`
-
-## 📋 Fichiers Importants
-
-### À Personnaliser
-```
-backend/.env              ← Configurer PostgreSQL
-frontend/.env.local       ← Optionnel (API URL)
-docker-compose.yml        ← Ports et services
-```
-
-### À Consulter
-```
-README.md                 ← Architecture générale
-API.md                    ← Endpoints détaillés
-STRUCTURE.md              ← Organisation du code
-```
-
-### À Exécuter
-```
-setup.bat (Windows)       ← Installation auto
-setup.sh (Linux/macOS)    ← Installation auto
-docker-compose up         ← Docker
-npm run dev              ← Dev mode
-```
-
-## 🔧 Commandes Essentielles
-
-```bash
-# Installation
-npm install
-
-# Développement
-npm run dev                    # Backend
-npm run dev                    # Frontend (autre terminal)
-
-# Build
-npm run build
-
-# Production
-npm start                      # Backend
-npm run preview              # Frontend
-
-# Docker
-docker-compose up --build    # Tout
-docker-compose down          # Arrêter
-
-# Tests
-./test.sh                    # API tests (Linux/macOS)
-```
-
-## ✅ Checklist Avant de Commencer
-
-- [ ] Node.js 18+ installé (`node --version`)
-- [ ] PostgreSQL running (`psql --version`)
-- [ ] Git installé (optionnel)
-- [ ] Code editor (VS Code recommandé)
-- [ ] Terminal ouvert dans le dossier du projet
-
-## 🎓 Pages de Documentation par Topic
-
-### Authentication
-- [README.md](README.md) - Section "Authentication"
-- [backend/README.md](backend/README.md) - Section "Authentication"
-- [API.md](API.md) - Section "Auth Endpoints"
-
-### Database
-- [README.md](README.md) - Section "Database Schema"
-- [backend/README.md](backend/README.md) - Section "Database"
-- [STRUCTURE.md](STRUCTURE.md) - Section "Database"
-
-### API
-- [API.md](API.md) - Tous les endpoints
-- [backend/README.md](backend/README.md) - Architecture
-- [README.md](README.md) - Vue d'ensemble
-
-### Frontend
-- [frontend/README.md](frontend/README.md) - Frontend specific
-- [README.md](README.md) - Architecture globale
-- [STRUCTURE.md](STRUCTURE.md) - Organisation fichiers
-
-### Deployment
-- [DOCKER.md](DOCKER.md) - Docker deployment
-- [README.md](README.md) - Recommendations
-- [backend/README.md](backend/README.md) - Build
-
-### Troubleshooting
-- [QUICKSTART.md](QUICKSTART.md) - Section "Dépannage"
-- [backend/README.md](backend/README.md) - Troubleshooting
-- [frontend/README.md](frontend/README.md) - Troubleshooting
-
-## 🚀 Premier Démarrage
-
-### Étape 1 : Lire
-```
-Lire : QUICKSTART.md (5 min)
-```
-
-### Étape 2 : Installer
-```bash
-./setup.sh                 # Linux/macOS
-setup.bat                  # Windows
-```
-
-### Étape 3 : Configurer
-```bash
-# Éditer backend/.env
-# Changer les credentials PostgreSQL
-```
-
-### Étape 4 : Lancer
-```bash
-# Terminal 1
-cd backend
-npm run dev
-
-# Terminal 2
-cd frontend
-npm run dev
-```
-
-### Étape 5 : Tester
-```
-Ouvrir : http://localhost:5173
-Créer compte et tester
-```
-
-## 📞 Besoin d'Aide ?
-
-| Question | Où chercher |
-|----------|------------|
-| Comment installer ? | [QUICKSTART.md](QUICKSTART.md) |
-| Comment utiliser l'API ? | [API.md](API.md) |
-| Comment ajouter une page ? | [frontend/README.md](frontend/README.md) |
-| Comment ajouter un endpoint ? | [backend/README.md](backend/README.md) |
-| Erreur lors du démarrage ? | [QUICKSTART.md](QUICKSTART.md) - Dépannage |
-| Comment déployer ? | [DOCKER.md](DOCKER.md) |
-| Quelle est la structure ? | [STRUCTURE.md](STRUCTURE.md) |
-
-## 🎉 Prêt à Commencer ?
-
-**[Allez au QUICKSTART →](QUICKSTART.md)**
+**Date** : 5 février 2026  
+**Projet** : VB Coaching - Plateforme de Coaching de Course à Pied
 
 ---
 
-**Dernière mise à jour : Février 2024**
+## 🚀 DÉMARRAGE RAPIDE
 
-Bonne chance avec votre plateforme ! 🚀
+**Nouveau sur le projet ?** Suivez ces étapes :
+
+1. **[README.md](README.md)** - 👈 **LIRE EN PREMIER** - Vue d'ensemble du projet
+2. **[START_HERE.md](START_HERE.md)** - Guide d'installation complet (15 min)
+3. **[QUICK_START.md](QUICK_START.md)** - Démarrage rapide (5 min)
+
+---
+
+## 📖 DOCUMENTATION PAR CATÉGORIE
+
+### 🏗️ Architecture & Structure
+| Fichier | Description | Pour qui ? |
+|---------|-------------|------------|
+| **[STRUCTURE.md](STRUCTURE.md)** | Architecture complète du projet | Développeurs |
+| **[API.md](API.md)** | Documentation des endpoints API REST | Développeurs Backend |
+| **[SECURITY.md](SECURITY.md)** | Authentification, autorisation, sécurité | Tous développeurs |
+
+### 🐳 Déploiement & Configuration
+| Fichier | Description | Pour qui ? |
+|---------|-------------|------------|
+| **[DOCKER.md](DOCKER.md)** | Conteneurisation avec Docker | DevOps |
+| **[docker-compose.yml](docker-compose.yml)** | Configuration Docker Compose | DevOps |
+| **[setup.sh](setup.sh)** | Script d'installation automatique | Tous |
+
+### 🎯 Fonctionnalités Spécifiques
+| Fichier | Description | Lignes | Pour qui ? |
+|---------|-------------|--------|------------|
+| **[ATHLETE_METRICS_SYSTEM.md](ATHLETE_METRICS_SYSTEM.md)** | Système complet de métriques (FC Max, VMA, zones) | 600+ | Développeurs, Coachs |
+| **[TEST_ATHLETE_METRICS.md](TEST_ATHLETE_METRICS.md)** | Tests du système de métriques | 300+ | Testeurs |
+| **[SESSION_BUILDER_SUMMARY.md](SESSION_BUILDER_SUMMARY.md)** | Constructeur de séances par blocs | 200+ | Développeurs, Coachs |
+| **[SYNC_SYSTEM_SUMMARY.md](SYNC_SYSTEM_SUMMARY.md)** | Synchronisation Strava/Garmin | 200+ | Développeurs |
+
+### 🔧 Configuration Externe
+| Fichier | Description | Pour qui ? |
+|---------|-------------|------------|
+| **[OAUTH_SETUP_GUIDE.md](OAUTH_SETUP_GUIDE.md)** | Configuration OAuth (Strava/Garmin) | Administrateurs |
+| **[EXPORT_MONTRES_GUIDE.md](EXPORT_MONTRES_GUIDE.md)** | Export fichiers GPX depuis montres | Utilisateurs finaux |
+
+### 📊 Rapports
+| Fichier | Description | Pour qui ? |
+|---------|-------------|------------|
+| **[CLEANUP_REPORT.md](CLEANUP_REPORT.md)** | Rapport de nettoyage du projet | Tous |
+
+---
+
+## 🎯 NAVIGATION PAR BESOIN
+
+### "Je veux installer le projet"
+→ **[START_HERE.md](START_HERE.md)** (installation complète)  
+→ **[QUICK_START.md](QUICK_START.md)** (installation rapide)  
+→ **[setup.sh](setup.sh)** (script automatique)
+
+### "Je veux comprendre l'architecture"
+→ **[STRUCTURE.md](STRUCTURE.md)** (architecture globale)  
+→ **[API.md](API.md)** (endpoints API)
+
+### "Je veux déployer en production"
+→ **[DOCKER.md](DOCKER.md)** (conteneurisation)  
+→ **[SECURITY.md](SECURITY.md)** (sécurité)
+
+### "Je veux utiliser les métriques athlètes"
+→ **[ATHLETE_METRICS_SYSTEM.md](ATHLETE_METRICS_SYSTEM.md)** (documentation complète)  
+→ **[TEST_ATHLETE_METRICS.md](TEST_ATHLETE_METRICS.md)** (tests)
+
+### "Je veux configurer la sync avec Strava/Garmin"
+→ **[OAUTH_SETUP_GUIDE.md](OAUTH_SETUP_GUIDE.md)** (configuration OAuth)  
+→ **[SYNC_SYSTEM_SUMMARY.md](SYNC_SYSTEM_SUMMARY.md)** (système de sync)
+
+### "Je veux créer des séances d'entraînement"
+→ **[SESSION_BUILDER_SUMMARY.md](SESSION_BUILDER_SUMMARY.md)** (constructeur de séances)
+
+---
+
+## 🔍 NAVIGATION PAR RÔLE
+
+### 👨‍💻 Développeur Backend
+1. [STRUCTURE.md](STRUCTURE.md) - Architecture
+2. [API.md](API.md) - Endpoints
+3. [SECURITY.md](SECURITY.md) - Sécurité
+4. [ATHLETE_METRICS_SYSTEM.md](ATHLETE_METRICS_SYSTEM.md) - Métriques
+
+### 👨‍💻 Développeur Frontend
+1. [STRUCTURE.md](STRUCTURE.md) - Architecture
+2. [API.md](API.md) - Consommer l'API
+3. [ATHLETE_METRICS_SYSTEM.md](ATHLETE_METRICS_SYSTEM.md) - Interface métriques
+
+### 🚀 DevOps / Administrateur
+1. [DOCKER.md](DOCKER.md) - Déploiement
+2. [SECURITY.md](SECURITY.md) - Sécurité
+3. [OAUTH_SETUP_GUIDE.md](OAUTH_SETUP_GUIDE.md) - OAuth
+4. [setup.sh](setup.sh) - Installation
+
+### 🧪 Testeur / QA
+1. [TEST_ATHLETE_METRICS.md](TEST_ATHLETE_METRICS.md) - Tests métriques
+2. [QUICK_START.md](QUICK_START.md) - Démarrage rapide
+
+### 🏃 Coach / Utilisateur Final
+1. [QUICK_START.md](QUICK_START.md) - Démarrage
+2. [EXPORT_MONTRES_GUIDE.md](EXPORT_MONTRES_GUIDE.md) - Export montres
+3. [ATHLETE_METRICS_SYSTEM.md](ATHLETE_METRICS_SYSTEM.md) - Guide métriques
+
+---
+
+## 📊 STATISTIQUES
+
+### Documentation
+- **Total de fichiers** : 16 (14 markdown + 2 config)
+- **Lignes de documentation** : ~2500+
+- **Fichiers supprimés lors du nettoyage** : ~70
+
+### Couverture
+- ✅ Architecture complète
+- ✅ API documentée
+- ✅ Sécurité couverte
+- ✅ Déploiement Docker
+- ✅ Fonctionnalités principales documentées
+- ✅ Guides de test
+
+---
+
+## 🎯 PROCHAINES ÉTAPES
+
+### Pour démarrer maintenant
+```bash
+# 1. Lire la vue d'ensemble
+cat README.md
+
+# 2. Installer le projet
+./setup.sh
+
+# 3. Lancer l'application
+cd backend && npm run dev  # Terminal 1
+cd frontend && npm run dev # Terminal 2
+```
+
+### Pour contribuer
+1. Lire [STRUCTURE.md](STRUCTURE.md)
+2. Consulter [API.md](API.md) et [SECURITY.md](SECURITY.md)
+3. Suivre les conventions du projet
+4. Documenter tout nouveau code
+
+---
+
+## 📝 MAINTENANCE DE LA DOCUMENTATION
+
+### Règles d'Or
+1. **Ne pas créer de fichiers redondants** - Mettre à jour les fichiers existants
+2. **Garder la documentation à jour** - Synchroniser avec le code
+3. **Utiliser des exemples** - Faciliter la compréhension
+4. **Être concis** - Aller à l'essentiel
+
+### Où ajouter de la documentation ?
+| Type de documentation | Fichier à éditer |
+|----------------------|------------------|
+| Nouvelle fonctionnalité | Créer un fichier dédié (ex: `FEATURE_NAME_SUMMARY.md`) |
+| Nouvel endpoint API | [API.md](API.md) |
+| Changement architecture | [STRUCTURE.md](STRUCTURE.md) |
+| Nouvelle config sécurité | [SECURITY.md](SECURITY.md) |
+| Nouveau guide utilisateur | Créer dans `/docs/guides/` |
+
+---
+
+## 🆘 SUPPORT
+
+### Documentation manquante ?
+1. Vérifier dans [README.md](README.md)
+2. Consulter ce fichier (INDEX.md)
+3. Chercher dans les fichiers spécifiques
+
+### Problème technique ?
+1. Consulter [SECURITY.md](SECURITY.md) pour les erreurs d'auth
+2. Voir [DOCKER.md](DOCKER.md) pour les problèmes de déploiement
+3. Lire [API.md](API.md) pour les erreurs API
+
+---
+
+## 🌟 FICHIERS ESSENTIELS
+
+**Top 5 des fichiers les plus importants :**
+
+1. 🥇 **[README.md](README.md)** - Vue d'ensemble (292 lignes)
+2. 🥈 **[STRUCTURE.md](STRUCTURE.md)** - Architecture complète
+3. 🥉 **[API.md](API.md)** - Tous les endpoints
+4. 🏅 **[ATHLETE_METRICS_SYSTEM.md](ATHLETE_METRICS_SYSTEM.md)** - Système métriques (600+ lignes)
+5. 🏅 **[SECURITY.md](SECURITY.md)** - Sécurité & auth
+
+---
+
+## ✅ CHECKLIST NOUVEAU DÉVELOPPEUR
+
+### Jour 1 : Découverte
+- [ ] Lire [README.md](README.md)
+- [ ] Parcourir [STRUCTURE.md](STRUCTURE.md)
+- [ ] Installer avec [setup.sh](setup.sh)
+
+### Jour 2 : Approfondissement
+- [ ] Étudier [API.md](API.md)
+- [ ] Lire [SECURITY.md](SECURITY.md)
+- [ ] Tester avec [QUICK_START.md](QUICK_START.md)
+
+### Jour 3 : Fonctionnalités
+- [ ] Explorer [ATHLETE_METRICS_SYSTEM.md](ATHLETE_METRICS_SYSTEM.md)
+- [ ] Comprendre [SESSION_BUILDER_SUMMARY.md](SESSION_BUILDER_SUMMARY.md)
+- [ ] Configurer [OAUTH_SETUP_GUIDE.md](OAUTH_SETUP_GUIDE.md)
+
+### Semaine 1 : Production
+- [ ] Préparer déploiement [DOCKER.md](DOCKER.md)
+- [ ] Effectuer tests [TEST_ATHLETE_METRICS.md](TEST_ATHLETE_METRICS.md)
+- [ ] Contribuer au projet !
+
+---
+
+**Dernière mise à jour** : 5 février 2026  
+**Version de la documentation** : 2.0 (après nettoyage)  
+**Status** : ✅ Documentation complète et à jour

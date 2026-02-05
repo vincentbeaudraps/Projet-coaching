@@ -8,6 +8,9 @@ import athletesRoutes from './routes/athletes.js';
 import sessionsRoutes from './routes/sessions.js';
 import messagesRoutes from './routes/messages.js';
 import performanceRoutes from './routes/performance.js';
+import invitationsRoutes from './routes/invitations.js';
+import activitiesRoutes from './routes/activities.js';
+import platformsRoutes from './routes/platforms.js';
 
 // Global error handlers
 process.on('uncaughtException', (error) => {
@@ -34,6 +37,9 @@ app.use('/api/athletes', athletesRoutes);
 app.use('/api/sessions', sessionsRoutes);
 app.use('/api/messages', messagesRoutes);
 app.use('/api/performance', performanceRoutes);
+app.use('/api/invitations', invitationsRoutes);
+app.use('/api/activities', activitiesRoutes);
+app.use('/api/platforms', platformsRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
