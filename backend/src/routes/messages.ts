@@ -1,6 +1,8 @@
 import express, { Router } from 'express';
 import client from '../database/connection.js';
 import { authenticateToken } from '../middleware/auth.js';
+import { createNotification } from './notifications.js';
+import emailService from '../utils/emailService.js';
 
 const router: Router = express.Router();
 
@@ -16,6 +18,43 @@ router.post('/', authenticateToken, async (req, res) => {
        RETURNING *`,
       [senderId, receiverId, content]
     );
+
+    // Get sender name for notification
+    const senderResult = await client.query(
+      'SELECT name FROM users WHERE id = $1',
+      [senderId]
+    );
+
+    const senderName = senderResult.rows[0]?.name || 'Quelqu\'un';
+
+    // Get receiver info for email
+    const receiverResult = await client.query(
+      'SELECT name, email FROM users WHERE id = $1',
+      [receiverId]
+    );
+
+    const receiverName = receiverResult.rows[0]?.name || 'Utilisateur';
+    const receiverEmail = receiverResult.rows[0]?.email;
+
+    // Create notification for receiver
+    await createNotification(
+      receiverId,
+      'new_message',
+      '💬 Nouveau message',
+      `${senderName} vous a envoyé un message`,
+      `/dashboard`,
+      result.rows[0].id
+    );
+
+    // Send email notification
+    if (receiverEmail) {
+      await emailService.sendNewMessageEmail(
+        receiverEmail,
+        receiverName,
+        senderName,
+        content
+      );
+    }
 
     res.status(201).json(result.rows[0]);
   } catch (error) {

@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { activitiesService } from '../services/api';
 import { Athlete } from '../types/index';
+import { showSuccess, showError, showWarning } from '../utils/toast.tsx';
 
 interface AddActivityFormProps {
   athletes: Athlete[];
@@ -29,7 +30,7 @@ function AddActivityForm({ athletes, onActivityAdded, preselectedAthleteId }: Ad
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!formData.athleteId || !formData.duration) {
-      alert('Veuillez remplir au moins l\'athlète et la durée');
+      showWarning('Veuillez remplir au moins l\'athlète et la durée');
       return;
     }
 
@@ -50,7 +51,7 @@ function AddActivityForm({ athletes, onActivityAdded, preselectedAthleteId }: Ad
         notes: formData.notes || undefined,
       });
 
-      alert('Activité ajoutée avec succès !');
+      showSuccess('Activité ajoutée avec succès');
       setShowForm(false);
       setFormData({
         athleteId: preselectedAthleteId || '',
@@ -69,7 +70,7 @@ function AddActivityForm({ athletes, onActivityAdded, preselectedAthleteId }: Ad
       onActivityAdded();
     } catch (error) {
       console.error('Error adding activity:', error);
-      alert('Erreur lors de l\'ajout de l\'activité');
+      showError('Erreur lors de l\'ajout', error as Error);
     } finally {
       setLoading(false);
     }

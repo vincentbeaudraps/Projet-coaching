@@ -1,21 +1,18 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
-import { sessionsService, performanceService, activitiesService, athletesService } from '../services/api';
-import { TrainingSession, Performance, CompletedActivity } from '../types/index';
+import { sessionsService, activitiesService, athletesService } from '../services/api';
+import { TrainingSession, CompletedActivity } from '../types/index';
+import { showSuccess, showError } from '../utils/toast.tsx';
 import Header from '../components/Header';
 import Calendar from '../components/Calendar';
 import CompletedActivitiesCalendar from '../components/CompletedActivitiesCalendar';
 import '../styles/Dashboard.css';
 
 function AthleteDashboard() {
-  const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
   const [sessions, setSessions] = useState<TrainingSession[]>([]);
   const [completedActivities, setCompletedActivities] = useState<CompletedActivity[]>([]);
-  const [performance, setPerformance] = useState<Performance[]>([]);
   const [athleteId, setAthleteId] = useState<string>('');
-  const [activeTab, setActiveTab] = useState<'calendar' | 'performance' | 'messages'>('calendar');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -45,14 +42,12 @@ function AthleteDashboard() {
     if (!targetAthleteId) return;
 
     try {
-      const [sessionsRes, activitiesRes, performanceRes] = await Promise.all([
+      const [sessionsRes, activitiesRes] = await Promise.all([
         sessionsService.getForAthlete(targetAthleteId),
         activitiesService.getForAthlete(targetAthleteId),
-        performanceService.getForAthlete(targetAthleteId),
       ]);
       setSessions(sessionsRes.data);
       setCompletedActivities(activitiesRes.data);
-      setPerformance(performanceRes.data);
     } catch (error) {
       console.error('Error loading data:', error);
     }
@@ -65,17 +60,17 @@ function AthleteDashboard() {
     try {
       await activitiesService.uploadGPX(file, athleteId);
       await loadData();
-      alert('Fichier GPX importé avec succès !');
+      showSuccess('Fichier GPX importé avec succès');
     } catch (error) {
       console.error('Error uploading GPX:', error);
-      alert('Erreur lors de l\'import du fichier GPX');
+      showError('Erreur lors de l\'import', error as Error);
     }
   };
 
   if (loading) {
     return (
       <div className="dashboard-wrapper">
-        <Header title="Dashboard Athlète" />
+        <Header />
         <div className="dashboard-container">
           <div className="loading">Chargement...</div>
         </div>
@@ -85,7 +80,7 @@ function AthleteDashboard() {
 
   return (
     <div className="dashboard-wrapper">
-      <Header title="Dashboard Athlète" />
+      <Header />
       
       <div className="dashboard-container">
         <div className="dashboard-welcome">
@@ -93,108 +88,47 @@ function AthleteDashboard() {
           <p className="subtitle">Voici vos séances programmées et vos activités réalisées</p>
         </div>
 
-        <nav className="dashboard-nav">
-          <button
-            className={activeTab === 'calendar' ? 'active' : ''}
-            onClick={() => setActiveTab('calendar')}
-          >
-            📅 Mes Séances
-          </button>
-          <button
-            className={activeTab === 'performance' ? 'active' : ''}
-            onClick={() => setActiveTab('performance')}
-          >
-            📊 Performances
-          </button>
-          <button
-            className={activeTab === 'messages' ? 'active' : ''}
-            onClick={() => setActiveTab('messages')}
-          >
-            💬 Messages
-          </button>
-        </nav>
+        {/* Bouton pour importer GPX */}
+        <div className="upload-section">
+          <label htmlFor="gpx-upload" className="btn-upload">
+            📤 Importer une activité (GPX/FIT/TCX)
+          </label>
+          <input
+            id="gpx-upload"
+            type="file"
+            accept=".gpx,.fit,.tcx"
+            onChange={handleFileUpload}
+            style={{ display: 'none' }}
+          />
+        </div>
 
-        <main className="dashboard-content">
-          {activeTab === 'calendar' && (
-            <div className="calendar-section">
-              {/* Bouton pour importer GPX */}
-              <div className="upload-section">
-                <label htmlFor="gpx-upload" className="btn-upload">
-                  📤 Importer une activité (GPX/FIT/TCX)
-                </label>
-                <input
-                  id="gpx-upload"
-                  type="file"
-                  accept=".gpx,.fit,.tcx"
-                  onChange={handleFileUpload}
-                  style={{ display: 'none' }}
-                />
-                <button 
-                  className="btn-devices"
-                  onClick={() => navigate('/devices')}
-                >
-                  🔗 Connecter mes appareils
-                </button>
-              </div>
-
-              {/* Double Calendrier */}
-              <div className="calendars-grid">
-                {/* Calendrier des séances planifiées */}
-                <div className="calendar-container">
-                  <div className="calendar-header">
-                    <h2>📋 Séances Programmées</h2>
-                    <p className="calendar-subtitle">
-                      {sessions.length} séance{sessions.length > 1 ? 's' : ''} planifiée{sessions.length > 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  <Calendar
-                    sessions={sessions}
-                  />
-                </div>
-
-                {/* Calendrier des activités réalisées */}
-                <div className="calendar-container">
-                  <div className="calendar-header">
-                    <h2>✅ Activités Réalisées</h2>
-                    <p className="calendar-subtitle">
-                      {completedActivities.length} activité{completedActivities.length > 1 ? 's' : ''} enregistrée{completedActivities.length > 1 ? 's' : ''}
-                    </p>
-                  </div>
-                  <CompletedActivitiesCalendar
-                    activities={completedActivities}
-                    onActivityUpdated={() => loadData()}
-                  />
-                </div>
-              </div>
+        {/* Double Calendrier */}
+        <div className="calendars-grid">
+          {/* Calendrier des séances planifiées */}
+          <div className="calendar-container">
+            <div className="calendar-header">
+              <h2>📋 Séances Programmées</h2>
+              <p className="calendar-subtitle">
+                {sessions.length} séance{sessions.length > 1 ? 's' : ''} planifiée{sessions.length > 1 ? 's' : ''}
+              </p>
             </div>
-          )}
+            <Calendar sessions={sessions} />
+          </div>
 
-          {activeTab === 'performance' && (
-            <div className="performance-view">
-              <h2>📊 Historique des Performances</h2>
-              {performance.length === 0 ? (
-                <p>Aucune performance enregistrée pour le moment.</p>
-              ) : (
-                performance.map((record) => (
-                  <div key={record.id} className="performance-card">
-                    <p>Durée: {record.actual_duration} min</p>
-                    {record.actual_distance && <p>Distance: {record.actual_distance} km</p>}
-                    {record.avg_heart_rate && <p>FC moyenne: {record.avg_heart_rate} bpm</p>}
-                    <p>Date: {new Date(record.recorded_at).toLocaleDateString('fr-FR')}</p>
-                    {record.notes && <p>Notes: {record.notes}</p>}
-                  </div>
-                ))
-              )}
+          {/* Calendrier des activités réalisées */}
+          <div className="calendar-container">
+            <div className="calendar-header">
+              <h2>✅ Activités Réalisées</h2>
+              <p className="calendar-subtitle">
+                {completedActivities.length} activité{completedActivities.length > 1 ? 's' : ''} enregistrée{completedActivities.length > 1 ? 's' : ''}
+              </p>
             </div>
-          )}
-
-          {activeTab === 'messages' && (
-            <div className="messages-view">
-              <h2>💬 Messages</h2>
-              <p>Fonctionnalité de messagerie à venir...</p>
-            </div>
-          )}
-        </main>
+            <CompletedActivitiesCalendar
+              activities={completedActivities}
+              onActivityUpdated={() => loadData()}
+            />
+          </div>
+        </div>
       </div>
     </div>
   );

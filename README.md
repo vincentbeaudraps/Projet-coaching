@@ -2,6 +2,36 @@
 
 Plateforme complète de coaching de course à pieds pour gérer les athlètes, créer des séances d'entraînement, suivre les performances et communiquer en temps réel.
 
+## 🆕 Nouveautés Version 2.1.0
+
+**Date de mise à jour** : 6 février 2026
+
+### Fonctionnalités Ajoutées
+- ✅ **Calendriers avec zones cardio** (Z1-Z5) - Code couleur automatique basé sur l'intensité
+- ✅ **Badges optimisés** - Taille réduite de 17% pour un calendrier plus propre
+- ✅ **Validation création de séances** - Compatible avec toutes les montres GPS (Garmin, Polar, Suunto, Coros, Wahoo)
+- ✅ **Pourcentages de VMA** - Programmation scientifique avec prévisualisation temps réel
+- ✅ **Templates personnalisés** - Sauvegarde et réutilisation de séances en 1 clic
+
+### 📚 Documentation Complète
+- [VISUAL_SUMMARY.md](./VISUAL_SUMMARY.md) - Vue d'ensemble visuelle des améliorations
+- [PRODUCTION_READY.md](./PRODUCTION_READY.md) - Checklist de déploiement production
+- [CUSTOM_TEMPLATES.md](./CUSTOM_TEMPLATES.md) - Guide complet des templates personnalisés
+- [TESTING_GUIDE.md](./TESTING_GUIDE.md) - 18 scénarios de test détaillés
+- [FINAL_UPDATE_SUMMARY.md](./FINAL_UPDATE_SUMMARY.md) - Résumé technique des changements
+
+### 🚀 Quick Start
+```bash
+# 1. Lire le résumé visuel
+cat VISUAL_SUMMARY.md
+
+# 2. Suivre le guide de test
+cat TESTING_GUIDE.md
+
+# 3. Vérifier la checklist production
+cat PRODUCTION_READY.md
+```
+
 ## 🎯 Fonctionnalités
 
 ### Pour les Coachs

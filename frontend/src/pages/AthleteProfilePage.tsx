@@ -5,6 +5,7 @@ import { athletesService, sessionsService, performanceService } from '../service
 import { Athlete } from '../types/index';
 import Header from '../components/Header';
 import AthleteMetrics from '../components/AthleteMetrics';
+import TrainingZones from '../components/TrainingZones';
 import '../styles/AthleteProfile.css';
 
 function AthleteProfilePage() {
@@ -25,6 +26,7 @@ function AthleteProfilePage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [showMetricsModal, setShowMetricsModal] = useState(false);
+  const [activeTab, setActiveTab] = useState<'overview' | 'zones' | 'sessions'>('overview');
 
   // Pour les athlètes qui consultent leur propre profil
   const isOwnProfile = !id || (user?.role === 'athlete');
@@ -116,28 +118,39 @@ function AthleteProfilePage() {
 
   if (loading) {
     return (
-      <div className="loading-container">
-        <Header showBackButton={user?.role === 'coach'} backTo="/athletes" />
-        <div className="loading-content">Chargement...</div>
+      <div className="athlete-profile-wrapper">
+        <Header />
+        <div className="athlete-profile-page">
+          <div className="loading-content">Chargement...</div>
+        </div>
       </div>
     );
   }
 
   if (!athlete) {
     return (
-      <div className="error-container">
-        <Header showBackButton={user?.role === 'coach'} backTo="/athletes" />
-        <div className="error-content">Athlète non trouvé</div>
+      <div className="athlete-profile-wrapper">
+        <Header />
+        <div className="athlete-profile-page">
+          <div className="error-content">Athlète non trouvé</div>
+        </div>
       </div>
     );
   }
 
-  const isCoach = user?.role === 'coach';
-  const backPath = isCoach ? '/athletes' : '/dashboard';
-
   return (
-    <div className="athlete-profile-container">
-      <Header showBackButton backTo={backPath} title={isOwnProfile ? 'Mon Profil' : `Profil de ${athlete.user_name || athlete.name}`} />
+    <div className="athlete-profile-wrapper">
+      <Header />
+      
+      <div className="athlete-profile-page">
+        <div className="page-header">
+          <h1 className="page-main-title">
+            {isOwnProfile ? '👤 Mon Profil' : `👤 Profil de ${athlete.user_name || athlete.name}`}
+          </h1>
+          <p className="page-subtitle">
+            {isOwnProfile ? 'Consultez et gérez vos informations personnelles' : 'Informations et métriques de l\'athlète'}
+          </p>
+        </div>
 
       {error && <div className="error-message">{error}</div>}
 
@@ -151,26 +164,26 @@ function AthleteProfilePage() {
           <p className="profile-email">{athlete.user_email || athlete.email}</p>
         </div>
         <div className="profile-actions">
-          {isCoach && (
+          <button 
+            className="btn-metrics"
+            onClick={() => setShowMetricsModal(true)}
+            title="Gérer les métriques physiologiques"
+          >
+            Métriques
+          </button>
+          {user?.role === 'coach' && (
             <>
-              <button 
-                className="btn-metrics"
-                onClick={() => setShowMetricsModal(true)}
-                title="Gérer les métriques physiologiques"
-              >
-                📊 Métriques
-              </button>
               <button 
                 className="btn-edit"
                 onClick={() => setIsEditing(!isEditing)}
               >
-                {isEditing ? '✕ Annuler' : '✏️ Modifier'}
+                {isEditing ? 'Annuler' : 'Modifier'}
               </button>
               <button 
                 className="btn-delete"
                 onClick={() => setShowDeleteConfirm(true)}
               >
-                🗑️ Supprimer
+                Supprimer
               </button>
             </>
           )}
@@ -194,7 +207,7 @@ function AthleteProfilePage() {
       {showDeleteConfirm && (
         <div className="modal-overlay" onClick={() => setShowDeleteConfirm(false)}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
-            <h2>⚠️ Confirmer la suppression</h2>
+            <h2>Confirmer la suppression</h2>
             <p>
               Êtes-vous sûr de vouloir supprimer <strong>{athlete.user_name}</strong> ?
             </p>
@@ -220,7 +233,7 @@ function AthleteProfilePage() {
                 onClick={handleDelete}
                 disabled={deleting}
               >
-                {deleting ? '⏳ Suppression...' : '✓ Confirmer la suppression'}
+                {deleting ? 'Suppression...' : 'Confirmer la suppression'}
               </button>
             </div>
           </div>
@@ -274,14 +287,38 @@ function AthleteProfilePage() {
 
       {/* Informations actuelles */}
       <div className="profile-content">
+        {/* Onglets */}
+        <div className="tabs-container">
+          <button 
+            className={`tab-btn ${activeTab === 'overview' ? 'active' : ''}`}
+            onClick={() => setActiveTab('overview')}
+          >
+            Vue d'ensemble
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'zones' ? 'active' : ''}`}
+            onClick={() => setActiveTab('zones')}
+          >
+            Zones d'entraînement
+          </button>
+          <button 
+            className={`tab-btn ${activeTab === 'sessions' ? 'active' : ''}`}
+            onClick={() => setActiveTab('sessions')}
+          >
+            Séances & Performances
+          </button>
+        </div>
+
+        {/* Contenu des onglets */}
+        {activeTab === 'overview' && (
+          <>
         {/* Métriques Physiologiques */}
         <div className="profile-section">
-          <h2>📊 Métriques Physiologiques</h2>
+          <h2>Métriques Physiologiques</h2>
           {athlete.max_heart_rate || athlete.vma || athlete.vo2max ? (
             <div className="metrics-grid">
               {athlete.max_heart_rate && (
                 <div className="metric-card">
-                  <div className="metric-icon">❤️</div>
                   <div className="metric-details">
                     <span className="metric-label">FC Max</span>
                     <span className="metric-value">{athlete.max_heart_rate} bpm</span>
@@ -290,7 +327,6 @@ function AthleteProfilePage() {
               )}
               {athlete.resting_heart_rate && (
                 <div className="metric-card">
-                  <div className="metric-icon">💤</div>
                   <div className="metric-details">
                     <span className="metric-label">FC Repos</span>
                     <span className="metric-value">{athlete.resting_heart_rate} bpm</span>
@@ -299,7 +335,6 @@ function AthleteProfilePage() {
               )}
               {athlete.vma && (
                 <div className="metric-card">
-                  <div className="metric-icon">🏃</div>
                   <div className="metric-details">
                     <span className="metric-label">VMA</span>
                     <span className="metric-value">{athlete.vma} km/h</span>
@@ -308,7 +343,6 @@ function AthleteProfilePage() {
               )}
               {athlete.vo2max && (
                 <div className="metric-card">
-                  <div className="metric-icon">🫁</div>
                   <div className="metric-details">
                     <span className="metric-label">VO2 Max</span>
                     <span className="metric-value">{athlete.vo2max} ml/kg/min</span>
@@ -317,7 +351,6 @@ function AthleteProfilePage() {
               )}
               {athlete.weight && (
                 <div className="metric-card">
-                  <div className="metric-icon">⚖️</div>
                   <div className="metric-details">
                     <span className="metric-label">Poids</span>
                     <span className="metric-value">{athlete.weight} kg</span>
@@ -326,7 +359,6 @@ function AthleteProfilePage() {
               )}
               {athlete.lactate_threshold_pace && (
                 <div className="metric-card">
-                  <div className="metric-icon">⚡</div>
                   <div className="metric-details">
                     <span className="metric-label">Seuil Lactique</span>
                     <span className="metric-value">{formatPace(athlete.lactate_threshold_pace)}</span>
@@ -337,14 +369,12 @@ function AthleteProfilePage() {
           ) : (
             <div className="empty-metrics">
               <p>Aucune métrique renseignée</p>
-              {isCoach && (
-                <button 
-                  className="btn-add-metrics"
-                  onClick={() => setShowMetricsModal(true)}
-                >
-                  ➕ Ajouter des métriques
-                </button>
-              )}
+              <button 
+                className="btn-add-metrics"
+                onClick={() => setShowMetricsModal(true)}
+              >
+                Ajouter des métriques
+              </button>
             </div>
           )}
           {athlete.metrics_updated_at && (
@@ -359,7 +389,7 @@ function AthleteProfilePage() {
         </div>
 
         <div className="profile-section">
-          <h2>📋 Informations</h2>
+          <h2>Informations</h2>
           <div className="info-grid">
             <div className="info-item">
               <span className="info-label">Âge</span>
@@ -378,14 +408,13 @@ function AthleteProfilePage() {
 
         {/* Séances */}
         <div className="profile-section">
-          <h2>📅 Séances ({sessions.length})</h2>
+          <h2>Séances ({sessions.length})</h2>
           {sessions.length === 0 ? (
             <p className="empty-message">Aucune séance assignée</p>
           ) : (
             <div className="sessions-list">
               {sessions.slice(0, 5).map((session) => (
                 <div key={session.id} className="session-item">
-                  <div className="session-icon">🏃</div>
                   <div className="session-details">
                     <h4>{session.title}</h4>
                     <p>{session.type} • {session.duration} min</p>
@@ -401,7 +430,7 @@ function AthleteProfilePage() {
 
         {/* Performances */}
         <div className="profile-section">
-          <h2>📊 Dernières Performances ({performances.length})</h2>
+          <h2>Dernières Performances ({performances.length})</h2>
           {performances.length === 0 ? (
             <p className="empty-message">Aucune performance enregistrée</p>
           ) : (
@@ -414,13 +443,77 @@ function AthleteProfilePage() {
                   <div className="perf-details">
                     <span>{perf.actual_distance} km</span>
                     <span>{perf.actual_duration} min</span>
-                    {perf.avg_heart_rate && <span>❤️ {perf.avg_heart_rate} bpm</span>}
+                    {perf.avg_heart_rate && <span>FC: {perf.avg_heart_rate} bpm</span>}
                   </div>
                 </div>
               ))}
             </div>
           )}
         </div>
+          </>
+        )}
+
+        {/* Onglet Zones d'entraînement */}
+        {activeTab === 'zones' && (
+          <div className="profile-section">
+            <TrainingZones
+              fcMax={athlete.max_heart_rate || undefined}
+              fcRepos={athlete.resting_heart_rate || undefined}
+              vma={athlete.vma || undefined}
+            />
+          </div>
+        )}
+
+        {/* Onglet Séances & Performances */}
+        {activeTab === 'sessions' && (
+          <>
+            {/* Séances */}
+            <div className="profile-section">
+              <h2>Séances ({sessions.length})</h2>
+              {sessions.length === 0 ? (
+                <p className="empty-message">Aucune séance assignée</p>
+              ) : (
+                <div className="sessions-list">
+                  {sessions.map((session) => (
+                    <div key={session.id} className="session-item">
+                      <div className="session-details">
+                        <h4>{session.title}</h4>
+                        <p>{session.type} • {session.duration} min</p>
+                      </div>
+                      <div className="session-date">
+                        {new Date(session.start_date).toLocaleDateString('fr-FR')}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Performances */}
+            <div className="profile-section">
+              <h2>Performances ({performances.length})</h2>
+              {performances.length === 0 ? (
+                <p className="empty-message">Aucune performance enregistrée</p>
+              ) : (
+                <div className="performances-list">
+                  {performances.map((perf) => (
+                    <div key={perf.id} className="performance-item">
+                      <div className="perf-date">
+                        {new Date(perf.recorded_at).toLocaleDateString('fr-FR')}
+                      </div>
+                      <div className="perf-details">
+                        <span>{perf.actual_distance} km</span>
+                        <span>{perf.actual_duration} min</span>
+                        {perf.avg_heart_rate && <span>FC: {perf.avg_heart_rate} bpm</span>}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </>
+        )}
+      </div>
       </div>
     </div>
   );

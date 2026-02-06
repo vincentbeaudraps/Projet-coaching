@@ -3,6 +3,8 @@ import client from '../database/connection.js';
 import { authenticateToken, authorizeRole } from '../middleware/auth.js';
 import { generateId } from '../utils/id.js';
 import { exportToTCX, exportToGarminJSON, exportToText, exportToMarkdown } from '../utils/workoutExporter.js';
+import { createNotification } from './notifications.js';
+import emailService from '../utils/emailService.js';
 
 const router: Router = express.Router();
 
@@ -27,6 +29,49 @@ router.post('/', authenticateToken, authorizeRole('coach'), async (req, res) => 
       [sessionId]
     );
 
+    // Get athlete's user_id for notification
+    const athleteResult = await client.query(
+      'SELECT a.user_id, u.name as athlete_name, u.email as athlete_email FROM athletes a JOIN users u ON a.user_id = u.id WHERE a.id = $1',
+      [athleteId]
+    );
+
+    if (athleteResult.rows.length > 0) {
+      const athleteUserId = athleteResult.rows[0].user_id;
+      const athleteName = athleteResult.rows[0].athlete_name;
+      const athleteEmail = athleteResult.rows[0].athlete_email;
+      
+      // Get coach name
+      const coachResult = await client.query(
+        'SELECT name FROM users WHERE id = $1',
+        [coachId]
+      );
+      const coachName = coachResult.rows[0]?.name || 'Ton coach';
+
+      // Create notification for athlete
+      await createNotification(
+        athleteUserId,
+        'new_session',
+        '📅 Nouvelle séance programmée',
+        `Ton coach t'a assigné une nouvelle séance : ${title}`,
+        `/dashboard`,
+        sessionId
+      );
+
+      // Send email notification
+      await emailService.sendNewSessionEmail(
+        athleteEmail,
+        athleteName,
+        title,
+        new Date(startDate).toLocaleDateString('fr-FR', { 
+          weekday: 'long', 
+          year: 'numeric', 
+          month: 'long', 
+          day: 'numeric' 
+        }),
+        coachName
+      );
+    }
+
     res.status(201).json(result.rows[0]);
   } catch (error: any) {
     console.error('Create session error:', error);
@@ -39,13 +84,86 @@ router.post('/', authenticateToken, authorizeRole('coach'), async (req, res) => 
 router.get('/athlete/:athleteId', authenticateToken, async (req, res) => {
   try {
     const { athleteId } = req.params;
+    const { 
+      search, 
+      type, 
+      intensity, 
+      dateFrom, 
+      dateTo, 
+      minDuration, 
+      maxDuration,
+      hasZones,
+      status 
+    } = req.query;
 
-    const result = await client.query(
-      `SELECT * FROM training_sessions 
-       WHERE athlete_id = $1 
-       ORDER BY start_date DESC`,
-      [athleteId]
-    );
+    let query = `SELECT * FROM training_sessions WHERE athlete_id = $1`;
+    const params: any[] = [athleteId];
+    let paramIndex = 2;
+
+    // Search filter
+    if (search) {
+      query += ` AND (LOWER(title) LIKE $${paramIndex} OR LOWER(notes) LIKE $${paramIndex})`;
+      params.push(`%${(search as string).toLowerCase()}%`);
+      paramIndex++;
+    }
+
+    // Type filter
+    if (type) {
+      query += ` AND type = $${paramIndex}`;
+      params.push(type);
+      paramIndex++;
+    }
+
+    // Intensity filter
+    if (intensity) {
+      query += ` AND intensity = $${paramIndex}`;
+      params.push(intensity);
+      paramIndex++;
+    }
+
+    // Date range filter
+    if (dateFrom) {
+      query += ` AND start_date >= $${paramIndex}`;
+      params.push(dateFrom);
+      paramIndex++;
+    }
+
+    if (dateTo) {
+      query += ` AND start_date <= $${paramIndex}`;
+      params.push(dateTo);
+      paramIndex++;
+    }
+
+    // Duration filter
+    if (minDuration) {
+      query += ` AND duration >= $${paramIndex}`;
+      params.push(parseInt(minDuration as string));
+      paramIndex++;
+    }
+
+    if (maxDuration) {
+      query += ` AND duration <= $${paramIndex}`;
+      params.push(parseInt(maxDuration as string));
+      paramIndex++;
+    }
+
+    // Has zones filter
+    if (hasZones === 'true') {
+      query += ` AND blocks IS NOT NULL AND blocks != ''`;
+    } else if (hasZones === 'false') {
+      query += ` AND (blocks IS NULL OR blocks = '')`;
+    }
+
+    // Status filter (upcoming/completed)
+    if (status === 'upcoming') {
+      query += ` AND start_date > NOW()`;
+    } else if (status === 'completed') {
+      query += ` AND start_date <= NOW()`;
+    }
+
+    query += ` ORDER BY start_date DESC`;
+
+    const result = await client.query(query, params);
 
     res.json(result.rows);
   } catch (error) {
@@ -58,13 +176,94 @@ router.get('/athlete/:athleteId', authenticateToken, async (req, res) => {
 router.get('/', authenticateToken, authorizeRole('coach'), async (req, res) => {
   try {
     const coachId = req.userId;
+    const { 
+      search, 
+      athleteId,
+      type, 
+      intensity, 
+      dateFrom, 
+      dateTo, 
+      minDuration, 
+      maxDuration,
+      hasZones,
+      status 
+    } = req.query;
 
-    const result = await client.query(
-      `SELECT * FROM training_sessions 
-       WHERE coach_id = $1 
-       ORDER BY start_date DESC`,
-      [coachId]
-    );
+    let query = `SELECT * FROM training_sessions WHERE coach_id = $1`;
+    const params: any[] = [coachId];
+    let paramIndex = 2;
+
+    // Athlete filter
+    if (athleteId) {
+      query += ` AND athlete_id = $${paramIndex}`;
+      params.push(athleteId);
+      paramIndex++;
+    }
+
+    // Search filter
+    if (search) {
+      query += ` AND (LOWER(title) LIKE $${paramIndex} OR LOWER(notes) LIKE $${paramIndex})`;
+      params.push(`%${(search as string).toLowerCase()}%`);
+      paramIndex++;
+    }
+
+    // Type filter
+    if (type) {
+      query += ` AND type = $${paramIndex}`;
+      params.push(type);
+      paramIndex++;
+    }
+
+    // Intensity filter
+    if (intensity) {
+      query += ` AND intensity = $${paramIndex}`;
+      params.push(intensity);
+      paramIndex++;
+    }
+
+    // Date range filter
+    if (dateFrom) {
+      query += ` AND start_date >= $${paramIndex}`;
+      params.push(dateFrom);
+      paramIndex++;
+    }
+
+    if (dateTo) {
+      query += ` AND start_date <= $${paramIndex}`;
+      params.push(dateTo);
+      paramIndex++;
+    }
+
+    // Duration filter
+    if (minDuration) {
+      query += ` AND duration >= $${paramIndex}`;
+      params.push(parseInt(minDuration as string));
+      paramIndex++;
+    }
+
+    if (maxDuration) {
+      query += ` AND duration <= $${paramIndex}`;
+      params.push(parseInt(maxDuration as string));
+      paramIndex++;
+    }
+
+    // Has zones filter
+    if (hasZones === 'true') {
+      query += ` AND blocks IS NOT NULL AND blocks != ''`;
+    } else if (hasZones === 'false') {
+      query += ` AND (blocks IS NULL OR blocks = '')`;
+    }
+
+    // Status filter
+    if (status === 'upcoming') {
+      query += ` AND start_date > NOW()`;
+    } else if (status === 'completed') {
+      query += ` AND start_date <= NOW()`;
+    }
+
+    query += ` ORDER BY start_date DESC`;
+
+    const result = await client.query(query, params);
 
     res.json(result.rows);
   } catch (error) {
@@ -92,6 +291,43 @@ router.put('/:sessionId', authenticateToken, authorizeRole('coach'), async (req,
       [sessionId]
     );
 
+    // Get athlete's user_id for notification
+    const athleteResult = await client.query(
+      'SELECT a.user_id, u.name as athlete_name, u.email as athlete_email FROM athletes a JOIN users u ON a.user_id = u.id WHERE a.id = $1',
+      [result.rows[0].athlete_id]
+    );
+
+    if (athleteResult.rows.length > 0) {
+      const athleteUserId = athleteResult.rows[0].user_id;
+      const athleteName = athleteResult.rows[0].athlete_name;
+      const athleteEmail = athleteResult.rows[0].athlete_email;
+      
+      // Get coach name
+      const coachResult = await client.query(
+        'SELECT name FROM users WHERE id = $1',
+        [req.userId]
+      );
+      const coachName = coachResult.rows[0]?.name || 'Ton coach';
+      
+      // Create notification for athlete
+      await createNotification(
+        athleteUserId,
+        'session_modified',
+        '✏️ Séance modifiée',
+        `Ton coach a modifié la séance : ${title}`,
+        `/dashboard`,
+        sessionId
+      );
+
+      // Send email notification
+      await emailService.sendSessionModifiedEmail(
+        athleteEmail,
+        athleteName,
+        title,
+        coachName
+      );
+    }
+
     res.json(result.rows[0]);
   } catch (error) {
     console.error('Update session error:', error);
@@ -104,7 +340,37 @@ router.delete('/:sessionId', authenticateToken, authorizeRole('coach'), async (r
   try {
     const { sessionId } = req.params;
 
-    await client.query('DELETE FROM training_sessions WHERE id = $1', [sessionId]);
+    // Get session info before deletion for notification
+    const sessionResult = await client.query(
+      'SELECT title, athlete_id FROM training_sessions WHERE id = $1',
+      [sessionId]
+    );
+
+    if (sessionResult.rows.length > 0) {
+      const session = sessionResult.rows[0];
+      
+      // Get athlete's user_id
+      const athleteResult = await client.query(
+        'SELECT user_id FROM athletes WHERE id = $1',
+        [session.athlete_id]
+      );
+
+      // Delete session
+      await client.query('DELETE FROM training_sessions WHERE id = $1', [sessionId]);
+
+      // Create notification for athlete
+      if (athleteResult.rows.length > 0) {
+        await createNotification(
+          athleteResult.rows[0].user_id,
+          'session_deleted',
+          '🗑️ Séance supprimée',
+          `Ton coach a supprimé la séance : ${session.title}`,
+          `/dashboard`
+        );
+      }
+    } else {
+      await client.query('DELETE FROM training_sessions WHERE id = $1', [sessionId]);
+    }
 
     res.json({ message: 'Session deleted' });
   } catch (error) {

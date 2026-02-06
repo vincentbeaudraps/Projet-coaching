@@ -1,5 +1,6 @@
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
+import NotificationBell from './NotificationBell';
 import '../styles/Header.css';
 import vbLogo from '../assets/vb-logo.png';
 
@@ -26,18 +27,18 @@ function Header({ showBackButton = false, backTo = '/dashboard', title }: Header
 
   // Navigation items pour Coach
   const coachNavItems = [
-    { path: '/dashboard', label: 'Tableau de bord', icon: '📊' },
-    { path: '/athletes', label: 'Mes Athlètes', icon: '👥' },
-    { path: '/session-builder', label: 'Créer Séance', icon: '🏃' },
-    { path: '/invitations', label: 'Invitations', icon: '✉️' },
-    { path: '/devices', label: 'Appareils', icon: '🔗' },
+    { path: '/dashboard', label: 'Vue d\'ensemble', emoji: '📊' },
+    { path: '/athletes', label: 'Athlètes', emoji: '🏃' },
+    { path: '/session-builder', label: 'Créer Séance', emoji: '🎯' },
+    { path: '/invitations', label: 'Invitations', emoji: '📨' },
   ];
 
   // Navigation items pour Athlète
   const athleteNavItems = [
-    { path: '/dashboard', label: 'Mes Séances', icon: '📅' },
-    { path: '/profile', label: 'Mon Profil', icon: '👤' },
-    { path: '/devices', label: 'Appareils', icon: '🔗' },
+    { path: '/dashboard', label: 'Mes Séances', emoji: '📅' },
+    { path: '/athlete/profile', label: 'Profil', emoji: '👤' },
+    { path: '/athlete/races', label: 'Historique des courses', emoji: '📊' },
+    { path: '/devices', label: 'Appareils', emoji: '🔗' },
   ];
 
   const navItems = user?.role === 'coach' ? coachNavItems : athleteNavItems;
@@ -64,13 +65,14 @@ function Header({ showBackButton = false, backTo = '/dashboard', title }: Header
               className={`nav-item ${isActive(item.path) ? 'active' : ''}`}
               onClick={() => navigate(item.path)}
             >
-              <span className="nav-icon">{item.icon}</span>
+              <span className="nav-emoji">{item.emoji}</span>
               <span className="nav-label">{item.label}</span>
             </button>
           ))}
         </nav>
 
         <div className="header-right">
+          <NotificationBell />
           <div className="user-info" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }}>
             <div className="user-avatar">
               {user?.name?.charAt(0).toUpperCase()}

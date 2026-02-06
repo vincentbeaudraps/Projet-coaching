@@ -66,15 +66,21 @@ function AthletesManagementPage() {
   };
 
   const handleDeleteAthlete = async (athleteId: string) => {
-    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cet athlète ?')) {
+    if (!window.confirm('Êtes-vous sûr de vouloir supprimer cet athlète ? Cette action supprimera également toutes ses données (séances, performances, messages).')) {
       return;
     }
     
     try {
+      setError(''); // Clear previous errors
       await athletesService.delete(athleteId);
       await loadAthletes();
+      // Optionally show success message
+      alert('Athlète supprimé avec succès');
     } catch (err: any) {
-      setError('Erreur lors de la suppression');
+      const errorMessage = err.response?.data?.message || err.message || 'Erreur lors de la suppression';
+      setError(errorMessage);
+      console.error('Delete error:', err);
+      console.error('Error response:', err.response);
     }
   };
 
@@ -86,12 +92,25 @@ function AthletesManagementPage() {
   };
 
   if (loading) {
-    return <div className="loading-container">Chargement...</div>;
+    return (
+      <div className="athletes-wrapper">
+        <Header />
+        <div className="athletes-management-page">
+          <div className="loading-container">Chargement...</div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="athletes-management-container">
-      <Header showBackButton backTo="/dashboard" title="Gestion des Athlètes" />
+    <div className="athletes-wrapper">
+      <Header />
+      
+      <div className="athletes-management-page">
+        <div className="page-header">
+          <h1 className="page-main-title">🏃 Mes Athlètes</h1>
+          <p className="page-subtitle">Gérez vos athlètes et leurs métriques physiologiques</p>
+        </div>
 
       <div className="page-content">
         <div className="page-header-actions">
@@ -239,19 +258,19 @@ function AthletesManagementPage() {
                   className="btn-view"
                   onClick={() => navigate(`/athletes/${athlete.id}`)}
                 >
-                  👁️ Voir le profil
+                  Voir le profil
                 </button>
                 <button
                   className="btn-metrics"
                   onClick={() => setSelectedAthleteForMetrics(athlete)}
                 >
-                  ⚙️ Gérer les métriques
+                  Gérer les métriques
                 </button>
                 <button
                   className="btn-delete"
                   onClick={() => handleDeleteAthlete(athlete.id)}
                 >
-                  🗑️ Supprimer
+                  Supprimer
                 </button>
               </div>
             </div>
@@ -259,6 +278,7 @@ function AthletesManagementPage() {
         )}
       </div>
       </div>
+      
       {selectedAthleteForMetrics && (
         <AthleteMetrics
           athlete={selectedAthleteForMetrics}
@@ -266,6 +286,7 @@ function AthletesManagementPage() {
           onUpdate={handleMetricsUpdate}
         />
       )}
+      </div>
     </div>
   );
 }

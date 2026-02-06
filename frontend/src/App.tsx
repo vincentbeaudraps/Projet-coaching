@@ -8,8 +8,11 @@ import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import CoachDashboard from './pages/CoachDashboard';
 import AthleteDashboard from './pages/AthleteDashboard';
+import AthleteEnrichedDashboard from './pages/AthleteEnrichedDashboard';
+import AthleteRaceHistory from './pages/AthleteRaceHistory';
 import AthletesManagementPage from './pages/AthletesManagementPage';
 import AthleteProfilePage from './pages/AthleteProfilePage';
+import CoachAthleteDetailPage from './pages/CoachAthleteDetailPage';
 import InvitationsPage from './pages/InvitationsPage';
 import SessionBuilderPage from './pages/SessionBuilderPage';
 import ConnectedDevicesPage from './pages/ConnectedDevicesPage';
@@ -66,7 +69,7 @@ function App() {
           path="/athletes/:id"
           element={
             <CoachOnlyRoute>
-              <AthleteProfilePage />
+              <CoachAthleteDetailPage />
             </CoachOnlyRoute>
           }
         />
@@ -107,6 +110,22 @@ function App() {
           element={
             <ProtectedRoute>
               <AthleteProfilePage />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/athlete/profile"
+          element={
+            <ProtectedRoute>
+              <AthleteEnrichedDashboard />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/athlete/races"
+          element={
+            <ProtectedRoute>
+              <AthleteRaceHistory />
             </ProtectedRoute>
           }
         />

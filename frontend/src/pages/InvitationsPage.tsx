@@ -75,15 +75,24 @@ function InvitationsPage() {
   };
 
   if (loading) {
-    return <div className="loading-container">Chargement...</div>;
+    return (
+      <div className="invitations-wrapper">
+        <Header />
+        <div className="invitations-page">
+          <div className="loading-container">Chargement...</div>
+        </div>
+      </div>
+    );
   }
 
   return (
-    <div className="invitations-page">
-      <Header showBackButton backTo="/dashboard" title="Codes d'Invitation" />
+    <div className="invitations-wrapper">
+      <Header />
 
-      <div className="page-content">
+      <div className="invitations-page">
         <div className="page-header">
+          <h1 className="page-main-title">📨 Codes d'Invitation</h1>
+          <p className="page-subtitle">Invitez vos athlètes à rejoindre la plateforme</p>
           <button 
             className="btn-generate"
             onClick={handleGenerate}

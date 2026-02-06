@@ -1,25 +1,57 @@
 import { TrainingSession, Athlete } from '../types/index';
 import { useState } from 'react';
 import { sessionsService } from '../services/api';
+import { useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../store/authStore';
+import { showSuccess, showError, showConfirm } from '../utils/toast.tsx';
 
 interface CalendarProps {
   sessions: TrainingSession[];
   athletes?: Athlete[];
+  setSessions?: (sessions: TrainingSession[]) => void;
 }
 
-function Calendar({ sessions, athletes }: CalendarProps) {
+function Calendar({ sessions, athletes, setSessions }: CalendarProps) {
+  const navigate = useNavigate();
+  const user = useAuthStore((state) => state.user);
   const [selectedSession, setSelectedSession] = useState<TrainingSession | null>(null);
   const [exporting, setExporting] = useState(false);
   const today = new Date();
-  const currentMonth = today.getMonth();
-  const currentYear = today.getFullYear();
+  const [currentMonth, setCurrentMonth] = useState(today.getMonth());
+  const [currentYear, setCurrentYear] = useState(today.getFullYear());
+
+  const navigateMonth = (direction: 'prev' | 'next') => {
+    if (direction === 'prev') {
+      if (currentMonth === 0) {
+        setCurrentMonth(11);
+        setCurrentYear(currentYear - 1);
+      } else {
+        setCurrentMonth(currentMonth - 1);
+      }
+    } else {
+      if (currentMonth === 11) {
+        setCurrentMonth(0);
+        setCurrentYear(currentYear + 1);
+      } else {
+        setCurrentMonth(currentMonth + 1);
+      }
+    }
+  };
+
+  const goToToday = () => {
+    setCurrentMonth(today.getMonth());
+    setCurrentYear(today.getFullYear());
+  };
 
   const getDaysInMonth = (year: number, month: number) => {
     return new Date(year, month + 1, 0).getDate();
   };
 
   const getFirstDayOfMonth = (year: number, month: number) => {
-    return new Date(year, month, 1).getDay();
+    // getDay() retourne 0 pour dimanche, 1 pour lundi, etc.
+    // On ajuste pour que lundi soit 0, mardi 1, etc.
+    const day = new Date(year, month, 1).getDay();
+    return day === 0 ? 6 : day - 1; // Si dimanche (0), retourne 6, sinon décale de -1
   };
 
   const daysInMonth = getDaysInMonth(currentYear, currentMonth);
@@ -56,19 +88,74 @@ function Calendar({ sessions, athletes }: CalendarProps) {
     return athletes?.find((a) => a.id === athleteId);
   };
 
-  const getIntensityColor = (intensity: string) => {
-    switch (intensity.toLowerCase()) {
-      case 'low':
-      case 'faible':
-        return '#4CAF50';
-      case 'moderate':
-      case 'modéré':
-        return '#FF9800';
-      case 'high':
-      case 'élevé':
-        return '#f44336';
-      default:
-        return '#2196F3';
+  // Fonction pour déterminer la zone cardio dominante basée sur les blocs de la séance
+  const getSessionZoneFromBlocks = (session: TrainingSession): number => {
+    if (!session.blocks) return 2; // Zone 2 par défaut (endurance)
+
+    try {
+      const blocks = JSON.parse(session.blocks);
+      
+      // Analyse des types de blocs pour déterminer la zone
+      let hasIntervals = false;
+      let hasThreshold = false;
+      let hasTempo = false;
+      let totalDuration = 0;
+      let highIntensityDuration = 0;
+
+      blocks.forEach((block: any) => {
+        const type = block.type?.toLowerCase() || '';
+        const duration = block.duration || 0;
+        totalDuration += duration;
+
+        if (type.includes('intervalle') || type.includes('interval') || type.includes('répétitions')) {
+          hasIntervals = true;
+          highIntensityDuration += duration;
+        } else if (type.includes('seuil') || type.includes('threshold')) {
+          hasThreshold = true;
+          highIntensityDuration += duration;
+        } else if (type.includes('tempo')) {
+          hasTempo = true;
+        }
+      });
+
+      // Détermination de la zone basée sur l'analyse
+      if (hasIntervals) return 5; // Zone 5 - Intervalle/Maximum
+      if (hasThreshold) return 4; // Zone 4 - Seuil
+      if (hasTempo) return 3; // Zone 3 - Tempo
+      if (highIntensityDuration / totalDuration > 0.5) return 4; // Plus de 50% haute intensité
+      
+      // Analyse basée sur l'intensité de la séance
+      const intensity = session.intensity?.toLowerCase() || '';
+      if (intensity.includes('élevé') || intensity.includes('high')) return 4;
+      if (intensity.includes('modéré') || intensity.includes('moderate')) return 3;
+      if (intensity.includes('faible') || intensity.includes('low')) return 2;
+
+      return 2; // Zone 2 par défaut (endurance fondamentale)
+    } catch {
+      return 2;
+    }
+  };
+
+  // Couleurs basées sur les zones cardio (alignées avec TrainingZones.css)
+  const getZoneColor = (zone: number): string => {
+    switch (zone) {
+      case 1: return '#48bb78'; // Vert - Récupération
+      case 2: return '#4299e1'; // Bleu - Endurance
+      case 3: return '#ed8936'; // Orange - Tempo
+      case 4: return '#f56565'; // Rouge - Seuil
+      case 5: return '#9f7aea'; // Violet - Maximum
+      default: return '#4299e1';
+    }
+  };
+
+  const getZoneName = (zone: number): string => {
+    switch (zone) {
+      case 1: return 'Récupération';
+      case 2: return 'Endurance';
+      case 3: return 'Tempo';
+      case 4: return 'Seuil';
+      case 5: return 'Maximum';
+      default: return 'Endurance';
     }
   };
 
@@ -101,10 +188,10 @@ function Calendar({ sessions, athletes }: CalendarProps) {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
 
-      alert(`Séance exportée avec succès au format ${format.toUpperCase()} !`);
+      showSuccess(`Séance exportée au format ${format.toUpperCase()}`);
     } catch (error) {
       console.error('Export error:', error);
-      alert(`Erreur lors de l'export`);
+      showError('Erreur lors de l\'export', error as Error);
     } finally {
       setExporting(false);
     }
@@ -112,10 +199,37 @@ function Calendar({ sessions, athletes }: CalendarProps) {
 
   return (
     <div className="calendar-view">
-      <h2>{monthName}</h2>
+      <div className="calendar-header-row">
+        <div className="calendar-navigation">
+          <button 
+            className="nav-btn" 
+            onClick={() => navigateMonth('prev')}
+            title="Mois précédent"
+          >
+            ←
+          </button>
+          <h2>{monthName}</h2>
+          <button 
+            className="nav-btn" 
+            onClick={() => navigateMonth('next')}
+            title="Mois suivant"
+          >
+            →
+          </button>
+          <button 
+            className="today-btn" 
+            onClick={goToToday}
+            title="Aujourd'hui"
+          >
+            Aujourd'hui
+          </button>
+        </div>
+        <span className="calendar-badge planned-badge">📋 Planifié</span>
+      </div>
+      
       <div className="calendar-grid">
         <div className="calendar-header">
-          {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day) => (
+          {['Lun', 'Mar', 'Mer', 'Jeu', 'Ven', 'Sam', 'Dim'].map((day) => (
             <div key={day} className="calendar-day-header">
               {day}
             </div>
@@ -132,26 +246,37 @@ function Calendar({ sessions, athletes }: CalendarProps) {
                     <div className="day-sessions">
                       {daysSessions.map((session) => {
                         const athlete = getAthleteById(session.athlete_id);
+                        const zone = getSessionZoneFromBlocks(session);
+                        const zoneColor = getZoneColor(zone);
+                        
                         return (
                           <div
                             key={session.id}
                             className="session-badge"
-                            style={{ borderLeftColor: getIntensityColor(session.intensity) }}
+                            style={{ 
+                              borderLeftColor: zoneColor,
+                              background: `linear-gradient(135deg, ${zoneColor}15 0%, ${zoneColor}05 100%)`
+                            }}
                             onClick={() => setSelectedSession(session)}
-                            title={`${session.title} - ${(() => {
+                            title={`${session.title} - Zone ${zone} (${getZoneName(zone)}) - ${(() => {
                               const athleteName = athlete?.first_name && athlete?.last_name
                                 ? `${athlete.first_name} ${athlete.last_name}`
                                 : (athlete as any)?.user_name || athlete?.name || 'Athlète';
                               return athleteName;
                             })()}`}
                           >
-                            <span className="session-time">
-                              {new Date(session.start_date).toLocaleTimeString('fr-FR', {
-                                hour: '2-digit',
-                                minute: '2-digit',
-                              })}
-                            </span>
-                            <span className="session-title-short">{session.title}</span>
+                            <div className="session-zone-badge" style={{ backgroundColor: zoneColor }}>
+                              Z{zone}
+                            </div>
+                            <div className="session-content">
+                              <span className="session-time">
+                                {new Date(session.start_date).toLocaleTimeString('fr-FR', {
+                                  hour: '2-digit',
+                                  minute: '2-digit',
+                                })}
+                              </span>
+                              <span className="session-title-short">{session.title}</span>
+                            </div>
                           </div>
                         );
                       })}
@@ -212,10 +337,10 @@ function Calendar({ sessions, athletes }: CalendarProps) {
                 <span
                   className="intensity-badge"
                   style={{
-                    backgroundColor: getIntensityColor(selectedSession.intensity),
+                    backgroundColor: getZoneColor(getSessionZoneFromBlocks(selectedSession)),
                   }}
                 >
-                  {selectedSession.intensity}
+                  Zone {getSessionZoneFromBlocks(selectedSession)} - {getZoneName(getSessionZoneFromBlocks(selectedSession))}
                 </span>
               </div>
               <div className="session-detail">
@@ -262,6 +387,44 @@ function Calendar({ sessions, athletes }: CalendarProps) {
                 <div className="session-detail">
                   <strong>💭 Notes :</strong>
                   <p>{selectedSession.notes}</p>
+                </div>
+              )}
+
+              {/* Action buttons */}
+              {user?.role === 'coach' && (
+                <div className="session-actions">
+                  <button
+                    className="btn-edit-session"
+                    onClick={() => {
+                      navigate(`/session-builder/${selectedSession.id}`);
+                    }}
+                  >
+                    ✏️ Modifier la séance
+                  </button>
+                  <button
+                    className="btn-delete-session"
+                    onClick={() => {
+                      showConfirm(
+                        'Voulez-vous vraiment supprimer cette séance ?',
+                        async () => {
+                          try {
+                            await sessionsService.delete(selectedSession.id);
+                            if (setSessions) {
+                              setSessions(sessions.filter(s => s.id !== selectedSession.id));
+                            }
+                            setSelectedSession(null);
+                            showSuccess('Séance supprimée avec succès');
+                          } catch (error) {
+                            console.error('Erreur suppression séance:', error);
+                            showError('Erreur lors de la suppression', error as Error);
+                          }
+                        },
+                        { confirmText: 'Supprimer', dangerous: true }
+                      );
+                    }}
+                  >
+                    🗑️ Supprimer
+                  </button>
                 </div>
               )}
 

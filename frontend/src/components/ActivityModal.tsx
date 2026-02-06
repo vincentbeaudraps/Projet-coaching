@@ -1,5 +1,7 @@
-import { useState, useMemo } from 'react';
-import { CompletedActivity } from '../types';
+import { useState, useMemo, useEffect } from 'react';
+import { CompletedActivity, Athlete } from '../types';
+import { athletesService } from '../services/api';
+import ZoneDistribution from './ZoneDistribution';
 import '../styles/ActivityModal.css';
 
 interface ActivityModalProps {
@@ -19,12 +21,27 @@ interface Split {
 export default function ActivityModal({ activity, onClose, onSave, onDelete }: ActivityModalProps) {
   const [isEditing, setIsEditing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [athlete, setAthlete] = useState<Athlete | null>(null);
   const [formData, setFormData] = useState({
     title: activity.title || '',
     difficulty_rating: activity.difficulty_rating || 0,
     feeling_rating: activity.feeling_rating || 0,
     athlete_notes: activity.athlete_notes || '',
   });
+
+  // Charger les données de l'athlète pour obtenir ses métriques
+  useEffect(() => {
+    const loadAthleteMetrics = async () => {
+      try {
+        const response = await athletesService.getById(activity.athlete_id);
+        setAthlete(response.data);
+      } catch (error) {
+        console.error('Erreur lors du chargement des métriques:', error);
+      }
+    };
+    
+    loadAthleteMetrics();
+  }, [activity.athlete_id]);
 
   // Helper functions - MUST be declared before useMemo that uses them
   const parsePace = (pace: string): number => {
@@ -108,38 +125,7 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete }: A
     });
   }, [activity.distance, activity.avg_pace, activity.avg_heart_rate]);
 
-  // Calculate training zones (based on heart rate)
-  const trainingZones = useMemo(() => {
-    if (!activity.avg_heart_rate) return null;
-    
-    const maxHr = 190; // Should be calculated from athlete profile
-    const avgHr = activity.avg_heart_rate;
-    const percentMaxHr = (avgHr / maxHr) * 100;
-    
-    let zone = 1;
-    let zoneName = 'Récupération';
-    let zoneColor = '#4ade80';
-    
-    if (percentMaxHr > 90) {
-      zone = 5;
-      zoneName = 'VO2 Max';
-      zoneColor = '#ef4444';
-    } else if (percentMaxHr > 80) {
-      zone = 4;
-      zoneName = 'Seuil';
-      zoneColor = '#f97316';
-    } else if (percentMaxHr > 70) {
-      zone = 3;
-      zoneName = 'Tempo';
-      zoneColor = '#eab308';
-    } else if (percentMaxHr > 60) {
-      zone = 2;
-      zoneName = 'Endurance';
-      zoneColor = '#3b82f6';
-    }
-    
-    return { zone, zoneName, zoneColor, percentMaxHr: percentMaxHr.toFixed(0) };
-  }, [activity.avg_heart_rate]);
+  // Calculate training zones (based on heart rate) - Removed, now using ZoneDistribution component
 
   const handleSave = async () => {
     try {
@@ -227,54 +213,19 @@ export default function ActivityModal({ activity, onClose, onSave, onDelete }: A
               )}
             </div>
 
-            {/* Training Zone Card */}
-            {trainingZones && (
-              <div className="training-zone-card">
-                <div className="zone-header">
-                  <span className="zone-icon">❤️</span>
-                  <div className="zone-info">
-                    <span className="zone-title">Zone d'entraînement</span>
-                    <span className="zone-name" style={{ color: trainingZones.zoneColor }}>
-                      Zone {trainingZones.zone} - {trainingZones.zoneName}
-                    </span>
-                  </div>
-                </div>
-                <div className="zone-bar-container">
-                  <div className="zone-bar">
-                    <div 
-                      className="zone-bar-fill" 
-                      style={{ 
-                        width: `${trainingZones.percentMaxHr}%`,
-                        background: trainingZones.zoneColor 
-                      }}
-                    />
-                  </div>
-                  <span className="zone-percentage">{activity.avg_heart_rate} bpm ({trainingZones.percentMaxHr}% FC max)</span>
-                </div>
-                <div className="zone-legend">
-                  <div className="zone-legend-item">
-                    <span className="zone-dot" style={{ background: '#4ade80' }}></span>
-                    <span>Z1 Récup</span>
-                  </div>
-                  <div className="zone-legend-item">
-                    <span className="zone-dot" style={{ background: '#3b82f6' }}></span>
-                    <span>Z2 End.</span>
-                  </div>
-                  <div className="zone-legend-item">
-                    <span className="zone-dot" style={{ background: '#eab308' }}></span>
-                    <span>Z3 Tempo</span>
-                  </div>
-                  <div className="zone-legend-item">
-                    <span className="zone-dot" style={{ background: '#f97316' }}></span>
-                    <span>Z4 Seuil</span>
-                  </div>
-                  <div className="zone-legend-item">
-                    <span className="zone-dot" style={{ background: '#ef4444' }}></span>
-                    <span>Z5 VO2</span>
-                  </div>
-                </div>
-              </div>
-            )}
+            {/* Zone Distribution Analysis */}
+            <div className="zone-analysis-section">
+              <h3 className="section-title">Analyse des zones d'entraînement</h3>
+              <ZoneDistribution
+                avgHeartRate={activity.avg_heart_rate}
+                maxHeartRate={activity.max_heart_rate}
+                avgSpeed={activity.avg_speed}
+                duration={activity.duration / 60} // Convertir secondes en minutes
+                gpxData={activity.gpx_data}
+                athleteFcMax={athlete?.max_heart_rate}
+                athleteVMA={athlete?.vma}
+              />
+            </div>
 
             {/* Pace Chart */}
             {splits.length > 0 && (

@@ -1,0 +1,159 @@
+
+.training-zones-container {
+  padding: 20px 0;
+}
+
+.training-zones-empty {
+  text-align: center;
+  padding: 40px 20px;
+  background: #f8f9fa;
+  border-radius: 12px;
+  color: #6c757d;
+}
+
+.training-zones-empty p {
+  margin: 10px 0;
+}
+
+.zones-section {
+  margin-bottom: 40px;
+}
+
+.zones-section:last-child {
+  margin-bottom: 0;
+}
+
+.zones-section h3 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #2c3e50;
+}
+
+.zones-subtitle {
+  font-size: 0.95rem;
+  color: #6c757d;
+  margin-bottom: 20px;
+}
+
+.zones-subtitle strong {
+  color: #2c3e50;
+  font-weight: 600;
+}
+
+.zones-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 16px;
+}
+
+.zone-card {
+  background: white;
+  border-radius: 12px;
+  padding: 16px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  border-left: 4px solid;
+  transition: all 0.3s ease;
+}
+
+.zone-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
+}
+
+/* Couleurs des zones cardiaques */
+.zone-card.zone-1 {
+  border-left-color: #48bb78;
+}
+
+.zone-card.zone-2 {
+  border-left-color: #4299e1;
+}
+
+.zone-card.zone-3 {
+  border-left-color: #ed8936;
+}
+
+.zone-card.zone-4 {
+  border-left-color: #f56565;
+}
+
+.zone-card.zone-5 {
+  border-left-color: #9f7aea;
+}
+
+.zone-card.zone-6 {
+  border-left-color: #ed64a6;
+}
+
+.zone-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.zone-number {
+  font-size: 0.85rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #6c757d;
+}
+
+.zone-percentage {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #6c757d;
+  background: #f8f9fa;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.zone-name {
+  font-size: 1.2rem;
+  font-weight: 600;
+  color: #2c3e50;
+  margin-bottom: 8px;
+}
+
+.zone-range {
+  font-size: 1rem;
+  font-weight: 500;
+  color: #4a5568;
+  margin-bottom: 4px;
+}
+
+.zone-pace {
+  font-size: 0.9rem;
+  color: #718096;
+  font-style: italic;
+  margin-bottom: 8px;
+}
+
+.zone-description {
+  font-size: 0.9rem;
+  color: #718096;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid #e2e8f0;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .zones-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .zone-card {
+    padding: 14px;
+  }
+
+  .zones-section h3 {
+    font-size: 1.3rem;
+  }
+
+  .zone-name {
+    font-size: 1.1rem;
+  }
+}

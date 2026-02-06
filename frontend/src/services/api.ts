@@ -37,15 +37,44 @@ export const athletesService = {
   add: (userId: string, age: number, level: string, goals: string) =>
     api.post('/athletes', { userId, age, level, goals }),
   update: (id: string, data: any) => api.put(`/athletes/${id}`, data),
+  updateMe: (data: any) => api.patch('/athletes/me', data), // Update enriched profile
   delete: (id: string) => api.delete(`/athletes/${id}`),
   createAthleteAccount: (data: { email: string; name: string; age?: number; level?: string; goals?: string }) =>
     api.post('/athletes/create-account', data),
+  
+  // Personal Records
+  getMyRecords: () => api.get('/athletes/me/records'),
+  addRecord: (data: any) => api.post('/athletes/me/records', data),
+  updateRecord: (recordId: string, data: any) => api.put(`/athletes/me/records/${recordId}`, data),
+  deleteRecord: (recordId: string) => api.delete(`/athletes/me/records/${recordId}`),
+  
+  // Upcoming Races
+  getMyRaces: () => api.get('/athletes/me/races'),
+  addRace: (data: any) => api.post('/athletes/me/races', data),
+  updateRace: (raceId: string, data: any) => api.put(`/athletes/me/races/${raceId}`, data),
+  deleteRace: (raceId: string) => api.delete(`/athletes/me/races/${raceId}`),
+  
+  // Yearly Statistics
+  getYearlyStats: () => api.get('/athletes/me/yearly-stats'),
+  
+  // Annual Volumes (Manual Entry)
+  getAnnualVolumes: () => api.get('/athletes/me/annual-volumes'),
+  saveAnnualVolume: (data: { year: number; volume_km: number; notes?: string }) => 
+    api.post('/athletes/me/annual-volumes', data),
+  deleteAnnualVolume: (year: number) => api.delete(`/athletes/me/annual-volumes/${year}`),
+  
+  // Coach: Detailed Stats for an Athlete
+  getDetailedStats: (athleteId: string, weeks: number = 12) => 
+    api.get(`/athletes/${athleteId}/detailed-stats`, { params: { weeks } }),
+  getWeeklyProgression: (athleteId: string, weeks: number = 24) => 
+    api.get(`/athletes/${athleteId}/weekly-progression`, { params: { weeks } }),
 };
 
 export const sessionsService = {
   create: (data: any) => api.post('/sessions', data),
   getForAthlete: (athleteId: string) => api.get(`/sessions/athlete/${athleteId}`),
   getAll: () => api.get('/sessions'),
+  getById: (id: string) => api.get(`/sessions/${id}`),
   update: (id: string, data: any) => api.put(`/sessions/${id}`, data),
   delete: (id: string) => api.delete(`/sessions/${id}`),
   exportToWatch: (sessionId: string, format: 'tcx' | 'json' | 'txt' | 'md') => {

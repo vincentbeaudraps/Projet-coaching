@@ -1,13 +1,11 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { athletesService, sessionsService } from '../services/api';
+import { Athlete } from '../types';
+import { calculateHeartRateZones, calculateVMAZones } from '../utils/trainingZones';
+import { showSuccess, showError, showWarning, showLoading, dismissToast } from '../utils/toast.tsx';
 import Header from '../components/Header';
 import '../styles/SessionBuilder.css';
-
-interface Athlete {
-  id: string;
-  user_name: string;
-}
 
 interface SessionBlock {
   id: string;
@@ -15,8 +13,20 @@ interface SessionBlock {
   duration?: number; // en minutes
   distance?: number; // en km
   intensity: 'recovery' | 'easy' | 'moderate' | 'threshold' | 'tempo' | 'vo2max' | 'sprint';
-  pace?: string; // ex: "5:00-5:15"
-  heartRate?: string; // ex: "140-150"
+  
+  // Mode de consigne : zone, valeur fixe, ou % VMA
+  paceMode?: 'fixed' | 'zone' | 'vma_percent'; // Par défaut: fixed
+  paceMin?: number; // Allure min en secondes/km (ex: 270 pour 4:30/km)
+  paceMax?: number; // Allure max en secondes/km (ex: 285 pour 4:45/km)
+  paceZone?: number; // 1-6 pour zones VMA
+  vmaPercentMin?: number; // % VMA min (ex: 75 pour 75% VMA)
+  vmaPercentMax?: number; // % VMA max (ex: 85 pour 85% VMA)
+  
+  hrMode?: 'fixed' | 'zone'; // Par défaut: fixed
+  hrMin?: number; // FC min en bpm (ex: 140)
+  hrMax?: number; // FC max en bpm (ex: 150)
+  hrZone?: number; // 1-5 pour zones FC
+  
   description: string;
   repetitions?: number; // pour les intervalles
   recoveryTime?: number; // temps de récup entre répétitions (en minutes)
@@ -27,6 +37,8 @@ interface SessionTemplate {
   name: string;
   description: string;
   blocks: Omit<SessionBlock, 'id'>[];
+  isCustom?: boolean; // Pour différencier les templates personnalisés
+  createdAt?: string;
 }
 
 function SessionBuilderPage() {
@@ -34,6 +46,7 @@ function SessionBuilderPage() {
   const { id } = useParams(); // Si on édite une séance existante
   const [athletes, setAthletes] = useState<Athlete[]>([]);
   const [selectedAthlete, setSelectedAthlete] = useState('');
+  const [selectedAthleteData, setSelectedAthleteData] = useState<Athlete | null>(null);
   const [title, setTitle] = useState('');
   const [date, setDate] = useState('');
   const [sessionType, setSessionType] = useState<'run' | 'trail' | 'recovery'>('run');
@@ -43,6 +56,10 @@ function SessionBuilderPage() {
   const [loading, setLoading] = useState(false);
   const [estimatedDuration, setEstimatedDuration] = useState(0);
   const [estimatedDistance, setEstimatedDistance] = useState(0);
+  const [customTemplates, setCustomTemplates] = useState<SessionTemplate[]>([]);
+  const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
+  const [templateName, setTemplateName] = useState('');
+  const [templateDescription, setTemplateDescription] = useState('');
 
   // Templates pré-définis
   const templates: SessionTemplate[] = [
@@ -61,8 +78,10 @@ function SessionBuilderPage() {
           type: 'endurance',
           duration: 50,
           intensity: 'easy',
-          pace: '5:30-6:00',
-          heartRate: '130-145',
+          paceMin: 330, // 5:30/km
+          paceMax: 360, // 6:00/km
+          hrMin: 130,
+          hrMax: 145,
           description: 'Endurance fondamentale - Confort respiratoire, capable de parler'
         },
         {
@@ -88,8 +107,10 @@ function SessionBuilderPage() {
           type: 'tempo',
           duration: 25,
           intensity: 'threshold',
-          pace: '4:20-4:30',
-          heartRate: '165-175',
+          paceMin: 260, // 4:20/km
+          paceMax: 270, // 4:30/km
+          hrMin: 165,
+          hrMax: 175,
           description: 'Allure seuil - Effort soutenu mais contrôlé'
         },
         {
@@ -115,8 +136,10 @@ function SessionBuilderPage() {
           type: 'interval',
           duration: 3,
           intensity: 'vo2max',
-          pace: '3:45-3:55',
-          heartRate: '180-190',
+          paceMin: 225, // 3:45/km
+          paceMax: 235, // 3:55/km
+          hrMin: 180,
+          hrMax: 190,
           description: 'Effort intense à VMA',
           repetitions: 8,
           recoveryTime: 2
@@ -145,8 +168,10 @@ function SessionBuilderPage() {
           duration: 90,
           distance: 18,
           intensity: 'moderate',
-          pace: '5:00-5:20',
-          heartRate: '145-160',
+          paceMin: 300, // 5:00/km
+          paceMax: 320, // 5:20/km
+          hrMin: 145,
+          hrMax: 160,
           description: 'Allure confortable, gérer l\'effort sur la durée'
         },
         {
@@ -191,8 +216,10 @@ function SessionBuilderPage() {
           type: 'endurance',
           duration: 30,
           intensity: 'recovery',
-          pace: '6:00-6:30',
-          heartRate: '120-135',
+          paceMin: 360, // 6:00/km
+          paceMax: 390, // 6:30/km
+          hrMin: 120,
+          hrMax: 135,
           description: 'Footing très facile, rester en-dessous de 75% FCMax'
         }
       ]
@@ -201,8 +228,52 @@ function SessionBuilderPage() {
 
   useEffect(() => {
     loadAthletes();
-    // TODO: Si id existe, charger la séance pour édition
+    
+    // Charger la séance si on est en mode édition
+    if (id) {
+      loadSession(id);
+    }
   }, [id]);
+
+  const loadSession = async (sessionId: string) => {
+    try {
+      setLoading(true);
+      const response = await sessionsService.getById(sessionId);
+      const session = response.data;
+      
+      // Pré-remplir le formulaire
+      setSelectedAthlete(session.athlete_id);
+      setTitle(session.title);
+      setDate(new Date(session.start_date).toISOString().split('T')[0]);
+      setSessionType(session.type || 'run');
+      setGlobalNotes(session.notes || session.description || '');
+      
+      // Charger les blocs si disponibles
+      if (session.blocks) {
+        try {
+          const loadedBlocks = typeof session.blocks === 'string' 
+            ? JSON.parse(session.blocks) 
+            : session.blocks;
+          
+          // Ajouter des IDs si manquants
+          const blocksWithIds = loadedBlocks.map((block: any, idx: number) => ({
+            ...block,
+            id: block.id || `${Date.now()}-${idx}`
+          }));
+          
+          setBlocks(blocksWithIds);
+      } catch (error) {
+        console.error('Erreur parsing blocs:', error);
+      }
+    }
+  } catch (error) {
+    console.error('Erreur chargement séance:', error);
+    showError('Impossible de charger la séance', error as Error);
+    navigate('/dashboard');
+  } finally {
+    setLoading(false);
+  }
+};
 
   useEffect(() => {
     calculateEstimates();
@@ -215,6 +286,60 @@ function SessionBuilderPage() {
     } catch (error) {
       console.error('Erreur chargement athlètes:', error);
     }
+  };
+
+  // Charger les données complètes de l'athlète sélectionné
+  useEffect(() => {
+    if (selectedAthlete) {
+      const loadAthleteData = async () => {
+        try {
+          const response = await athletesService.getById(selectedAthlete);
+          setSelectedAthleteData(response.data);
+          console.log('📊 Données athlète chargées:', response.data);
+          console.log('VMA:', response.data.vma);
+          console.log('FC MAX:', response.data.max_heart_rate);
+        } catch (error) {
+          console.error('Erreur chargement données athlète:', error);
+        }
+      };
+      loadAthleteData();
+    } else {
+      setSelectedAthleteData(null);
+    }
+  }, [selectedAthlete]);
+
+  // Charger les templates personnalisés depuis le localStorage
+  useEffect(() => {
+    const saved = localStorage.getItem('customTemplates');
+    if (saved) {
+      try {
+        setCustomTemplates(JSON.parse(saved));
+      } catch (error) {
+        console.error('Erreur chargement templates:', error);
+      }
+    }
+  }, []);
+
+  // === Fonctions utilitaires pour allures et FC ===
+  
+  /**
+   * Convertit des secondes en format "min:sec"
+   * Ex: 270 -> "4:30"
+   */
+  const secondsToPace = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const secs = seconds % 60;
+    return `${minutes}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  /**
+   * Convertit un % de VMA en allure (secondes/km)
+   * Ex: VMA 18 km/h, 80% VMA = 14.4 km/h = 4:10/km = 250 secondes/km
+   */
+  const vmaPercentToPace = (vma: number, percent: number): number => {
+    const speedKmh = vma * (percent / 100);
+    const secondsPerKm = 3600 / speedKmh; // 3600 secondes dans 1h
+    return Math.round(secondsPerKm);
   };
 
   const calculateEstimates = () => {
@@ -239,9 +364,39 @@ function SessionBuilderPage() {
       type: 'work',
       duration: 20,
       intensity: 'moderate',
-      description: ''
+      description: '',
+      paceMode: 'fixed',
+      hrMode: 'fixed',
     };
     setBlocks([...blocks, newBlock]);
+  };
+
+  // Helper pour obtenir les zones FC de l'athlète
+  const getAthleteHRZones = () => {
+    if (!selectedAthleteData?.max_heart_rate) return [];
+    return calculateHeartRateZones(selectedAthleteData.max_heart_rate);
+  };
+
+  // Helper pour obtenir les zones VMA de l'athlète
+  const getAthleteVMAZones = () => {
+    if (!selectedAthleteData?.vma) return [];
+    return calculateVMAZones(selectedAthleteData.vma);
+  };
+
+  // Formater l'affichage d'une zone FC
+  const formatHRZone = (zoneNumber: number) => {
+    const zones = getAthleteHRZones();
+    const zone = zones.find(z => z.zone === zoneNumber);
+    if (!zone) return `Zone ${zoneNumber}`;
+    return `Zone ${zoneNumber} (${zone.min}-${zone.max} bpm) - ${zone.name}`;
+  };
+
+  // Formater l'affichage d'une zone VMA
+  const formatVMAZone = (zoneNumber: number) => {
+    const zones = getAthleteVMAZones();
+    const zone = zones.find(z => z.zone === zoneNumber);
+    if (!zone) return `Zone ${zoneNumber}`;
+    return `Zone ${zoneNumber} (${zone.minSpeed.toFixed(1)}-${zone.maxSpeed.toFixed(1)} km/h) - ${zone.name}`;
   };
 
   const duplicateBlock = (index: number) => {
@@ -289,14 +444,51 @@ function SessionBuilderPage() {
     setShowTemplates(false);
   };
 
+  // Sauvegarder un nouveau template personnalisé
+  const saveAsTemplate = () => {
+    if (!templateName.trim() || blocks.length === 0) {
+      showWarning('Veuillez donner un nom au template et ajouter au moins un bloc');
+      return;
+    }
+
+    const newTemplate: SessionTemplate = {
+      id: `custom-${Date.now()}`,
+      name: templateName,
+      description: templateDescription || 'Template personnalisé',
+      blocks: blocks.map(({ id, ...rest }) => rest),
+      isCustom: true,
+      createdAt: new Date().toISOString()
+    };
+
+    const updated = [...customTemplates, newTemplate];
+    setCustomTemplates(updated);
+    localStorage.setItem('customTemplates', JSON.stringify(updated));
+    
+    setShowSaveTemplateModal(false);
+    setTemplateName('');
+    setTemplateDescription('');
+    showSuccess(`Template "${templateName}" sauvegardé avec succès !`);
+  };
+
+  // Supprimer un template personnalisé
+  const deleteCustomTemplate = (templateId: string) => {
+    if (confirm('Êtes-vous sûr de vouloir supprimer ce template ?')) {
+      const updated = customTemplates.filter(t => t.id !== templateId);
+      setCustomTemplates(updated);
+      localStorage.setItem('customTemplates', JSON.stringify(updated));
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!selectedAthlete || blocks.length === 0) {
-      alert('Veuillez sélectionner un athlète et ajouter au moins un bloc d\'entraînement');
+      showWarning('Veuillez sélectionner un athlète et ajouter au moins un bloc d\'entraînement');
       return;
     }
 
     setLoading(true);
+    const toastId = showLoading(id ? 'Modification en cours...' : 'Création en cours...');
+    
     try {
       // Convertir la date en format ISO avec horaire 08:00
       const sessionDateTime = new Date(date + 'T08:00:00').toISOString();
@@ -305,7 +497,7 @@ function SessionBuilderPage() {
       const sessionData = {
         athleteId: selectedAthlete,
         title,
-        description: globalNotes || `Séance créée avec ${blocks.length} blocs`,
+        description: globalNotes || `Séance ${id ? 'modifiée' : 'créée'} avec ${blocks.length} blocs`,
         type: sessionType,
         distance: estimatedDistance,
         duration: estimatedDuration,
@@ -316,30 +508,31 @@ function SessionBuilderPage() {
       };
 
       console.log('Envoi des données:', sessionData);
-      await sessionsService.create(sessionData);
       
-      alert('Séance créée avec succès !');
+      if (id) {
+        // Mode édition
+        await sessionsService.update(id, sessionData);
+        dismissToast(toastId);
+        showSuccess('Séance modifiée avec succès !');
+      } else {
+        // Mode création
+        await sessionsService.create(sessionData);
+        dismissToast(toastId);
+        showSuccess('Séance créée avec succès !');
+      }
+      
       navigate('/dashboard');
     } catch (error) {
-      console.error('Erreur création séance:', error);
-      alert('Erreur lors de la création de la séance');
+      console.error('Erreur sauvegarde séance:', error);
+      dismissToast(toastId);
+      showError(`Erreur lors de ${id ? 'la modification' : 'la création'} de la séance`, error as Error);
     } finally {
       setLoading(false);
     }
   };
 
-  const getIntensityLabel = (intensity: SessionBlock['intensity']) => {
-    const labels = {
-      recovery: 'Récupération',
-      easy: 'Facile',
-      moderate: 'Modéré',
-      threshold: 'Seuil',
-      tempo: 'Tempo',
-      vo2max: 'VMA',
-      sprint: 'Sprint'
-    };
-    return labels[intensity];
-  };
+  // Removed unused helper functions: getIntensityLabel, getBlockTypeLabel
+  // Kept getIntensityColor as it may be used in future UI enhancements
 
   const getIntensityColor = (intensity: SessionBlock['intensity']) => {
     const colors = {
@@ -354,21 +547,22 @@ function SessionBuilderPage() {
     return colors[intensity];
   };
 
-  const getBlockTypeLabel = (type: SessionBlock['type']) => {
-    const labels = {
-      warmup: '🔥 Échauffement',
-      work: '💪 Travail',
-      cooldown: '❄️ Retour au calme',
-      interval: '⚡ Intervalles',
-      tempo: '🎯 Tempo',
-      endurance: '🏃 Endurance'
-    };
-    return labels[type];
-  };
+  // Removed getBlockTypeLabel as it was unused
 
   return (
-    <div className="session-builder-container">
-      <Header showBackButton backTo="/dashboard" title="Créer une Séance" />
+    <div className="session-builder-wrapper">
+      <Header />
+      
+      <div className="session-builder-page">
+        <div className="page-header">
+          <h1 className="page-main-title">{id ? '✏️ Modifier une Séance' : '🎯 Créer une Séance'}</h1>
+          <p className="page-subtitle">
+            {id 
+              ? 'Modifiez les blocs et consignes de cette séance d\'entraînement'
+              : 'Construisez une séance d\'entraînement avancée avec des blocs et des consignes détaillées'
+            }
+          </p>
+        </div>
 
       <div className="session-builder-content">
         {/* Sidebar Templates */}
@@ -378,6 +572,51 @@ function SessionBuilderPage() {
             <button className="btn-close-sidebar" onClick={() => setShowTemplates(false)}>
               ✕
             </button>
+          </div>
+          
+          {/* Custom Templates Section */}
+          {customTemplates.length > 0 && (
+            <>
+              <div className="templates-section-header">
+                <h4>💾 Mes Templates</h4>
+              </div>
+              <div className="templates-list">
+                {customTemplates.map((template) => (
+                  <div
+                    key={template.id}
+                    className="template-card custom-template"
+                  >
+                    <div onClick={() => applyTemplate(template)}>
+                      <h4>{template.name}</h4>
+                      <p>{template.description}</p>
+                      <span className="template-blocks-count">
+                        {template.blocks.length} blocs
+                      </span>
+                      {template.createdAt && (
+                        <span className="template-date">
+                          {new Date(template.createdAt).toLocaleDateString('fr-FR')}
+                        </span>
+                      )}
+                    </div>
+                    <button
+                      className="btn-delete-template"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        deleteCustomTemplate(template.id);
+                      }}
+                      title="Supprimer ce template"
+                    >
+                      🗑️
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+
+          {/* Default Templates Section */}
+          <div className="templates-section-header">
+            <h4>📋 Templates par défaut</h4>
           </div>
           <div className="templates-list">
             {templates.map((template) => (
@@ -489,6 +728,40 @@ function SessionBuilderPage() {
             {/* Blocks List */}
             <div className="blocks-container">
               <h2>Structure de la séance</h2>
+              
+              {selectedAthleteData && (
+                <>
+                  {/* Debug info - peut être enlevé en production */}
+                  {(!selectedAthleteData.vma || !selectedAthleteData.max_heart_rate) && (
+                    <div className="metrics-warning">
+                      <span className="warning-icon">⚠️</span>
+                      <div className="warning-content">
+                        <strong>Métriques manquantes pour utiliser les zones</strong>
+                        <p>
+                          <strong>Valeurs actuelles :</strong><br />
+                          📊 VMA : {selectedAthleteData.vma ? `${selectedAthleteData.vma} km/h ✅` : '❌ Non renseignée'}<br />
+                          ❤️ FC MAX : {selectedAthleteData.max_heart_rate ? `${selectedAthleteData.max_heart_rate} bpm ✅` : '❌ Non renseignée'}
+                          <br /><br />
+                          <strong>Conséquences :</strong><br />
+                          {!selectedAthleteData.vma && '• Boutons "% VMA" et "Zone VMA" désactivés'}{!selectedAthleteData.vma && <br />}
+                          {!selectedAthleteData.max_heart_rate && '• Bouton "Zone FC" désactivé'}
+                          <br /><br />
+                          <a 
+                            href="#" 
+                            onClick={(e) => {
+                              e.preventDefault();
+                              navigate(`/athletes/${selectedAthlete}`);
+                            }}
+                            style={{ color: '#007bff', textDecoration: 'underline', fontWeight: 600 }}
+                          >
+                            🔧 Cliquer ici pour ajouter les métriques manquantes
+                          </a>
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </>
+              )}
               
               {blocks.length === 0 && (
                 <div className="empty-blocks">
@@ -615,25 +888,285 @@ function SessionBuilderPage() {
                       </div>
                     )}
 
-                    <div className="form-row">
-                      <div className="form-group">
-                        <label>Allure cible (min/km) - optionnel</label>
-                        <input
-                          type="text"
-                          value={block.pace || ''}
-                          onChange={(e) => updateBlock(index, 'pace', e.target.value)}
-                          placeholder="ex: 4:30-4:45"
-                        />
+                    {/* Allure / Vitesse */}
+                    <div className="zone-control-group">
+                      <div className="zone-mode-toggle">
+                        <label>Consigne d'allure</label>
+                        <div className="mode-buttons">
+                          <button
+                            type="button"
+                            className={`mode-btn ${block.paceMode === 'fixed' || !block.paceMode ? 'active' : ''}`}
+                            onClick={() => {
+                              updateBlock(index, 'paceMode', 'fixed');
+                              updateBlock(index, 'paceZone', undefined);
+                              updateBlock(index, 'vmaPercentMin', undefined);
+                              updateBlock(index, 'vmaPercentMax', undefined);
+                            }}
+                          >
+                            Allure fixe
+                          </button>
+                          <button
+                            type="button"
+                            className={`mode-btn ${block.paceMode === 'vma_percent' ? 'active' : ''}`}
+                            onClick={() => updateBlock(index, 'paceMode', 'vma_percent')}
+                            disabled={!selectedAthleteData?.vma}
+                            title={!selectedAthleteData?.vma ? 'L\'athlète doit avoir une VMA renseignée' : ''}
+                          >
+                            % VMA
+                          </button>
+                          <button
+                            type="button"
+                            className={`mode-btn ${block.paceMode === 'zone' ? 'active' : ''}`}
+                            onClick={() => updateBlock(index, 'paceMode', 'zone')}
+                            disabled={!selectedAthleteData?.vma}
+                            title={!selectedAthleteData?.vma ? 'L\'athlète doit avoir une VMA renseignée' : ''}
+                          >
+                            Zone VMA
+                          </button>
+                        </div>
                       </div>
-                      <div className="form-group">
-                        <label>Fréquence cardiaque (bpm) - optionnel</label>
-                        <input
-                          type="text"
-                          value={block.heartRate || ''}
-                          onChange={(e) => updateBlock(index, 'heartRate', e.target.value)}
-                          placeholder="ex: 150-165"
-                        />
+
+                      {block.paceMode === 'zone' && selectedAthleteData?.vma ? (
+                        <div className="form-group">
+                          <label>Zone VMA</label>
+                          <select
+                            value={block.paceZone || ''}
+                            onChange={(e) => {
+                              const zone = parseInt(e.target.value);
+                              updateBlock(index, 'paceZone', zone);
+                            }}
+                          >
+                            <option value="">Sélectionner une zone...</option>
+                            {getAthleteVMAZones().map((zone) => (
+                              <option key={zone.zone} value={zone.zone}>
+                                {formatVMAZone(zone.zone)}
+                              </option>
+                            ))}
+                          </select>
+                          {block.paceZone && (
+                            <div className="zone-info">
+                              ✓ {formatVMAZone(block.paceZone)}
+                            </div>
+                          )}
+                        </div>
+                      ) : block.paceMode === 'vma_percent' && selectedAthleteData?.vma ? (
+                        <div className="vma-percent-inputs">
+                          <div className="form-group">
+                            <label>% VMA MIN</label>
+                            <div className="percent-input-group">
+                              <input
+                                type="number"
+                                value={block.vmaPercentMin || ''}
+                                onChange={(e) => {
+                                  const value = parseInt(e.target.value) || 0;
+                                  if (value >= 50 && value <= 120) {
+                                    updateBlock(index, 'vmaPercentMin', value);
+                                  }
+                                }}
+                                min="50"
+                                max="120"
+                                placeholder="Ex: 75"
+                                className="percent-input"
+                              />
+                              <span className="percent-symbol">%</span>
+                            </div>
+                          </div>
+                          <div className="form-group">
+                            <label>% VMA MAX</label>
+                            <div className="percent-input-group">
+                              <input
+                                type="number"
+                                value={block.vmaPercentMax || ''}
+                                onChange={(e) => {
+                                  const value = parseInt(e.target.value) || 0;
+                                  if (value >= 50 && value <= 120) {
+                                    updateBlock(index, 'vmaPercentMax', value);
+                                  }
+                                }}
+                                min="50"
+                                max="120"
+                                placeholder="Ex: 85"
+                                className="percent-input"
+                              />
+                              <span className="percent-symbol">%</span>
+                            </div>
+                          </div>
+                          {block.vmaPercentMin && block.vmaPercentMax && selectedAthleteData?.vma && (
+                            <div className="vma-preview">
+                              🏃 VMA {selectedAthleteData.vma} km/h<br/>
+                              📏 {block.vmaPercentMin}% VMA = {secondsToPace(vmaPercentToPace(selectedAthleteData.vma, block.vmaPercentMin))}/km<br/>
+                              📏 {block.vmaPercentMax}% VMA = {secondsToPace(vmaPercentToPace(selectedAthleteData.vma, block.vmaPercentMax))}/km
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="pace-range-inputs">
+                          <div className="form-group">
+                            <label>Allure MIN (min/km)</label>
+                            <div className="pace-input-group">
+                              <input
+                                type="number"
+                                value={block.paceMin ? Math.floor(block.paceMin / 60) : ''}
+                                onChange={(e) => {
+                                  const minutes = parseInt(e.target.value) || 0;
+                                  const seconds = (block.paceMin || 0) % 60;
+                                  updateBlock(index, 'paceMin', minutes * 60 + seconds);
+                                }}
+                                min="3"
+                                max="10"
+                                placeholder="Min"
+                                className="pace-minutes"
+                              />
+                              <span className="pace-separator">:</span>
+                              <input
+                                type="number"
+                                value={block.paceMin ? (block.paceMin % 60).toString().padStart(2, '0') : ''}
+                                onChange={(e) => {
+                                  const seconds = parseInt(e.target.value) || 0;
+                                  const minutes = Math.floor((block.paceMin || 0) / 60);
+                                  updateBlock(index, 'paceMin', minutes * 60 + Math.min(59, Math.max(0, seconds)));
+                                }}
+                                min="0"
+                                max="59"
+                                placeholder="Sec"
+                                className="pace-seconds"
+                              />
+                            </div>
+                          </div>
+                          <div className="form-group">
+                            <label>Allure MAX (min/km)</label>
+                            <div className="pace-input-group">
+                              <input
+                                type="number"
+                                value={block.paceMax ? Math.floor(block.paceMax / 60) : ''}
+                                onChange={(e) => {
+                                  const minutes = parseInt(e.target.value) || 0;
+                                  const seconds = (block.paceMax || 0) % 60;
+                                  updateBlock(index, 'paceMax', minutes * 60 + seconds);
+                                }}
+                                min="3"
+                                max="10"
+                                placeholder="Min"
+                                className="pace-minutes"
+                              />
+                              <span className="pace-separator">:</span>
+                              <input
+                                type="number"
+                                value={block.paceMax ? (block.paceMax % 60).toString().padStart(2, '0') : ''}
+                                onChange={(e) => {
+                                  const seconds = parseInt(e.target.value) || 0;
+                                  const minutes = Math.floor((block.paceMax || 0) / 60);
+                                  updateBlock(index, 'paceMax', minutes * 60 + Math.min(59, Math.max(0, seconds)));
+                                }}
+                                min="0"
+                                max="59"
+                                placeholder="Sec"
+                                className="pace-seconds"
+                              />
+                            </div>
+                          </div>
+                          {block.paceMin && block.paceMax && (
+                            <div className="pace-preview">
+                              📏 Plage: {secondsToPace(block.paceMin)} - {secondsToPace(block.paceMax)} /km
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Fréquence Cardiaque */}
+                    <div className="zone-control-group">
+                      <div className="zone-mode-toggle">
+                        <label>Consigne de fréquence cardiaque</label>
+                        <div className="mode-buttons">
+                          <button
+                            type="button"
+                            className={`mode-btn ${block.hrMode !== 'zone' ? 'active' : ''}`}
+                            onClick={() => {
+                              updateBlock(index, 'hrMode', 'fixed');
+                              updateBlock(index, 'hrZone', undefined);
+                            }}
+                          >
+                            FC fixe
+                          </button>
+                          <button
+                            type="button"
+                            className={`mode-btn ${block.hrMode === 'zone' ? 'active' : ''}`}
+                            onClick={() => updateBlock(index, 'hrMode', 'zone')}
+                            disabled={!selectedAthleteData?.max_heart_rate}
+                            title={!selectedAthleteData?.max_heart_rate ? 'L\'athlète doit avoir une FC MAX renseignée' : ''}
+                          >
+                            Zone FC
+                          </button>
+                        </div>
                       </div>
+
+                      {block.hrMode === 'zone' && selectedAthleteData?.max_heart_rate ? (
+                        <div className="form-group">
+                          <label>Zone Cardiaque</label>
+                          <select
+                            value={block.hrZone || ''}
+                            onChange={(e) => {
+                              const zone = parseInt(e.target.value);
+                              updateBlock(index, 'hrZone', zone);
+                            }}
+                          >
+                            <option value="">Sélectionner une zone...</option>
+                            {getAthleteHRZones().map((zone) => (
+                              <option key={zone.zone} value={zone.zone}>
+                                {formatHRZone(zone.zone)}
+                              </option>
+                            ))}
+                          </select>
+                          {block.hrZone && (
+                            <div className="zone-info">
+                              ✓ {formatHRZone(block.hrZone)}
+                            </div>
+                          )}
+                        </div>
+                      ) : (
+                        <div className="hr-range-inputs">
+                          <div className="form-group">
+                            <label>FC MIN (bpm)</label>
+                            <input
+                              type="number"
+                              value={block.hrMin || ''}
+                              onChange={(e) => {
+                                const value = parseInt(e.target.value) || 0;
+                                if (value >= 40 && value <= 220) {
+                                  updateBlock(index, 'hrMin', value);
+                                }
+                              }}
+                              min="40"
+                              max="220"
+                              placeholder="Ex: 140"
+                              className="hr-input"
+                            />
+                          </div>
+                          <div className="form-group">
+                            <label>FC MAX (bpm)</label>
+                            <input
+                              type="number"
+                              value={block.hrMax || ''}
+                              onChange={(e) => {
+                                const value = parseInt(e.target.value) || 0;
+                                if (value >= 40 && value <= 220) {
+                                  updateBlock(index, 'hrMax', value);
+                                }
+                              }}
+                              min="40"
+                              max="220"
+                              placeholder="Ex: 160"
+                              className="hr-input"
+                            />
+                          </div>
+                          {block.hrMin && block.hrMax && (
+                            <div className="hr-preview">
+                              ❤️ Plage: {block.hrMin} - {block.hrMax} bpm
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
                     <div className="form-group">
@@ -678,15 +1211,89 @@ function SessionBuilderPage() {
                 Annuler
               </button>
               <button
+                type="button"
+                className="btn-save-template"
+                onClick={() => setShowSaveTemplateModal(true)}
+                disabled={blocks.length === 0}
+                title="Sauvegarder cette séance comme template réutilisable"
+              >
+                💾 Sauvegarder comme template
+              </button>
+              <button
                 type="submit"
                 className="btn-primary"
                 disabled={loading || !selectedAthlete || blocks.length === 0}
               >
-                {loading ? 'Création...' : 'Créer la séance'}
+                {loading 
+                  ? (id ? 'Modification...' : 'Création...') 
+                  : (id ? '✅ Enregistrer les modifications' : '✅ Créer la séance')
+                }
               </button>
             </div>
           </form>
+
+          {/* Modal Sauvegarde Template */}
+          {showSaveTemplateModal && (
+            <div className="modal-overlay" onClick={() => setShowSaveTemplateModal(false)}>
+              <div className="modal-content save-template-modal" onClick={(e) => e.stopPropagation()}>
+                <div className="modal-header">
+                  <h3>💾 Sauvegarder comme template</h3>
+                  <button className="close-btn" onClick={() => setShowSaveTemplateModal(false)}>
+                    ✕
+                  </button>
+                </div>
+                <div className="modal-body">
+                  <div className="form-group">
+                    <label>Nom du template *</label>
+                    <input
+                      type="text"
+                      value={templateName}
+                      onChange={(e) => setTemplateName(e.target.value)}
+                      placeholder="Ex: Séance seuil 30min"
+                      autoFocus
+                    />
+                  </div>
+                  <div className="form-group">
+                    <label>Description</label>
+                    <textarea
+                      value={templateDescription}
+                      onChange={(e) => setTemplateDescription(e.target.value)}
+                      placeholder="Ex: Travail au seuil anaérobie pour améliorer l'endurance"
+                      rows={3}
+                    />
+                  </div>
+                  <div className="template-preview-info">
+                    <strong>📊 Cette séance contient :</strong>
+                    <ul>
+                      <li>{blocks.length} bloc(s) d'entraînement</li>
+                      <li>Durée estimée : {estimatedDuration} minutes</li>
+                      {estimatedDistance > 0 && <li>Distance estimée : {estimatedDistance.toFixed(1)} km</li>}
+                    </ul>
+                  </div>
+                </div>
+                <div className="modal-footer">
+                  <button
+                    type="button"
+                    className="btn-secondary"
+                    onClick={() => setShowSaveTemplateModal(false)}
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    className="btn-primary"
+                    onClick={saveAsTemplate}
+                    disabled={!templateName.trim()}
+                  >
+                    💾 Sauvegarder
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
         </main>
+      </div>
       </div>
     </div>
   );
