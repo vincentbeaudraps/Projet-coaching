@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import { useApiSubmit } from '../hooks/useApi';
 import '../styles/Auth.css';
 import vbLogo from '../assets/vb-logo.png';
 
@@ -11,28 +12,35 @@ function RegisterPage() {
   const [password, setPassword] = useState('');
   const [invitationCode, setInvitationCode] = useState('');
   const [coachName, setCoachName] = useState('');
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [validatingCode, setValidatingCode] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuthStore();
+
+  // Validate invitation code
+  const { submit: validateCode, loading: validatingCode, error: validateError } = useApiSubmit(async (code: string) => {
+    const response = await authService.validate(code);
+    setCoachName(response.data.coachName);
+    return response;
+  });
+
+  // Register user
+  const { submit: registerUser, loading, error: registerError } = useApiSubmit(async (data: { email: string; name: string; password: string; invitationCode?: string }) => {
+    const response = await authService.register(data.email, data.name, data.password, data.invitationCode);
+    login(response.data.user, response.data.token);
+    navigate('/dashboard');
+    return response;
+  });
+
+  const error = validateError || registerError;
 
   const handleValidateCode = async (code: string) => {
     if (!code || code.length < 6) {
       setCoachName('');
       return;
     }
-
-    try {
-      setValidatingCode(true);
-      const response = await authService.validate(code);
-      setCoachName(response.data.coachName);
-      setError('');
-    } catch (err: any) {
+    
+    const success = await validateCode(code);
+    if (!success) {
       setCoachName('');
-      setError(err.response?.data?.message || 'Code invalide');
-    } finally {
-      setValidatingCode(false);
     }
   };
 
@@ -48,19 +56,7 @@ function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      // Le rôle "athlete" est automatiquement attribué côté serveur
-      const response = await authService.register(email, name, password, invitationCode || undefined);
-      login(response.data.user, response.data.token);
-      navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.message || "Échec de l'inscription");
-    } finally {
-      setLoading(false);
-    }
+    await registerUser({ email, name, password, invitationCode: invitationCode || undefined });
   };
 
   return (

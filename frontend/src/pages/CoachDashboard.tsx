@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { sessionsService, athletesService, activitiesService } from '../services/api';
 import { TrainingSession, Athlete, CompletedActivity } from '../types/index';
-import { showSuccess, showError, showWarning } from '../utils/toast.tsx';
+import { showSuccess, showWarning } from '../utils/toast.tsx';
 import Header from '../components/Header';
 import Calendar from '../components/Calendar';
 import CompletedActivitiesCalendar from '../components/CompletedActivitiesCalendar';
 import AddActivityForm from '../components/AddActivityForm';
 import Dashboard from '../components/Dashboard';
-import { useApi } from '../hooks/useApi';
+import { useApi, useApiSubmit } from '../hooks/useApi';
 // import SessionFilters, { SessionFilters as FilterType } from '../components/SessionFilters';
 // import { useSessionFilters } from '../hooks/useSessionFilters';
 import '../styles/Dashboard.css';
@@ -29,9 +29,16 @@ function CoachDashboard() {
   );
   
   const [selectedAthleteId, setSelectedAthleteId] = useState<string | null>(null);
-  const [uploadingGPX, setUploadingGPX] = useState(false);
   
   const loading = loadingAthletes || loadingSessions || loadingActivities;
+
+  // Upload GPX using useApiSubmit
+  const { submit: uploadGPX, loading: uploadingGPX } = useApiSubmit(async (data: { file: File; athleteId: string }) => {
+    const res = await activitiesService.uploadGPX(data.file, data.athleteId);
+    await Promise.all([refetchAthletes(), refetchSessions(), refetchActivities()]);
+    showSuccess('Activité importée avec succès');
+    return res;
+  });
 
   const loadData = async () => {
     await Promise.all([refetchAthletes(), refetchSessions(), refetchActivities()]);
@@ -44,18 +51,8 @@ function CoachDashboard() {
       return;
     }
 
-    setUploadingGPX(true);
-    try {
-      await activitiesService.uploadGPX(file, selectedAthleteId);
-      await loadData();
-      showSuccess('Activité importée avec succès');
-    } catch (error) {
-      console.error('Error uploading GPX:', error);
-      showError('Erreur lors de l\'import du fichier GPX', error as Error);
-    } finally {
-      setUploadingGPX(false);
-      event.target.value = '';
-    }
+    await uploadGPX({ file, athleteId: selectedAthleteId });
+    event.target.value = '';
   };
 
   // Filtrer les séances selon l'athlète sélectionné

@@ -1,5 +1,6 @@
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import { platformsService } from '../services/api';
+import { useApi, useApiSubmit } from '../hooks/useApi';
 import '../styles/ConnectedDevices.css';
 
 interface ConnectedPlatform {
@@ -58,105 +59,97 @@ const PLATFORMS = [
 ];
 
 const ConnectedDevicesPage: React.FC = () => {
-  const [connectedPlatforms, setConnectedPlatforms] = useState<ConnectedPlatform[]>([]);
-  const [loading, setLoading] = useState(true);
   const [syncing, setSyncing] = useState<string | null>(null);
 
-  useEffect(() => {
-    loadConnectedPlatforms();
-  }, []);
+  // Load connected platforms using useApi
+  const { data: platformsData, loading, refetch } = useApi<ConnectedPlatform[]>(
+    () => platformsService.getConnected().then(res => res.data),
+    []
+  );
+  const connectedPlatforms = platformsData || [];
 
-  const loadConnectedPlatforms = async () => {
+  // Disconnect platform using useApiSubmit
+  const { submit: disconnectPlatform } = useApiSubmit(async (platformId: string) => {
+    const res = await platformsService.disconnect(platformId);
+    await refetch();
+    alert('Déconnecté avec succès');
+    return res;
+  });
+
+  // Sync platform using useApiSubmit
+  const { submit: syncPlatform } = useApiSubmit(async (platformId: string) => {
+    setSyncing(platformId);
     try {
-      const response = await platformsService.getConnected();
-      setConnectedPlatforms(response.data);
-    } catch (error) {
-      console.error('Failed to load connected platforms:', error);
+      const res = await platformsService.sync(platformId);
+      await refetch();
+      alert('Synchronisation réussie ! ✅');
+      return res;
     } finally {
-      setLoading(false);
+      setSyncing(null);
     }
-  };
+  });
 
   const handleConnect = async (platformId: string) => {
-    try {
-      // Get authorization URL
-      const { authUrl, state } = await platformsService.getAuthUrl(platformId);
-      
-      // Store state for CSRF protection
-      sessionStorage.setItem(`oauth_state_${platformId}`, state);
-      
-      // Open OAuth window
-      const width = 600;
-      const height = 700;
-      const left = window.screen.width / 2 - width / 2;
-      const top = window.screen.height / 2 - height / 2;
-      
-      const oauthWindow = window.open(
-        authUrl,
-        'OAuth',
-        `width=${width},height=${height},left=${left},top=${top}`
-      );
+    // Get authorization URL
+    const { authUrl, state } = await platformsService.getAuthUrl(platformId);
+    
+    // Store state for CSRF protection
+    sessionStorage.setItem(`oauth_state_${platformId}`, state);
+    
+    // Open OAuth window
+    const width = 600;
+    const height = 700;
+    const left = window.screen.width / 2 - width / 2;
+    const top = window.screen.height / 2 - height / 2;
+    
+    const oauthWindow = window.open(
+      authUrl,
+      'OAuth',
+      `width=${width},height=${height},left=${left},top=${top}`
+    );
 
-      // Listen for OAuth callback
-      const handleMessage = async (event: MessageEvent) => {
-        if (event.data.type === 'oauth-callback') {
-          const { code, state: returnedState, platform } = event.data;
-          const savedState = sessionStorage.getItem(`oauth_state_${platform}`);
+    // Listen for OAuth callback
+    const handleMessage = async (event: MessageEvent) => {
+      if (event.data.type === 'oauth-callback') {
+        const { code, state: returnedState, platform } = event.data;
+        const savedState = sessionStorage.getItem(`oauth_state_${platform}`);
 
-          if (returnedState === savedState) {
-            try {
-              await platformsService.handleCallback(platform, code, returnedState);
-              await loadConnectedPlatforms();
-              alert(`${platform.toUpperCase()} connecté avec succès ! 🎉`);
-            } catch (error: any) {
-              alert(`Erreur de connexion: ${error.message}`);
-            }
-          } else {
-            alert('Erreur de sécurité (CSRF)');
+        if (returnedState === savedState) {
+          try {
+            await platformsService.handleCallback(platform, code, returnedState);
+            await refetch();
+            alert(`${platform.toUpperCase()} connecté avec succès ! 🎉`);
+          } catch (error: any) {
+            alert(`Erreur de connexion: ${error.message}`);
           }
-
-          sessionStorage.removeItem(`oauth_state_${platform}`);
-          oauthWindow?.close();
+        } else {
+          alert('Erreur de sécurité (CSRF)');
         }
-      };
 
-      window.addEventListener('message', handleMessage);
+        sessionStorage.removeItem(`oauth_state_${platform}`);
+        oauthWindow?.close();
+      }
+    };
 
-      // Cleanup
-      const checkClosed = setInterval(() => {
-        if (oauthWindow?.closed) {
-          clearInterval(checkClosed);
-          window.removeEventListener('message', handleMessage);
-        }
-      }, 500);
-    } catch (error: any) {
-      alert(`Erreur: ${error.message}`);
-    }
+    window.addEventListener('message', handleMessage);
+
+    // Cleanup
+    const checkClosed = setInterval(() => {
+      if (oauthWindow?.closed) {
+        clearInterval(checkClosed);
+        window.removeEventListener('message', handleMessage);
+      }
+    }, 500);
   };
 
   const handleDisconnect = async (platformId: string) => {
     if (window.confirm(`Voulez-vous vraiment déconnecter ${platformId.toUpperCase()} ?`)) {
-      try {
-        await platformsService.disconnect(platformId);
-        await loadConnectedPlatforms();
-        alert('Déconnecté avec succès');
-      } catch (error: any) {
-        alert(`Erreur: ${error.message}`);
-      }
+      await disconnectPlatform(platformId);
     }
   };
 
   const handleSync = async (platformId: string) => {
-    setSyncing(platformId);
-    try {
-      await platformsService.sync(platformId);
-      await loadConnectedPlatforms();
-      alert('Synchronisation réussie ! ✅');
-    } catch (error: any) {
-      alert(`Erreur de synchronisation: ${error.message}`);
-    } finally {
-      setSyncing(null);
-    }
+    await syncPlatform(platformId);
   };
 
   const isConnected = (platformId: string) => {

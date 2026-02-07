@@ -2,11 +2,11 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { sessionsService, activitiesService, athletesService } from '../services/api';
 import { TrainingSession, CompletedActivity } from '../types/index';
-import { showSuccess, showError } from '../utils/toast.tsx';
+import { showSuccess } from '../utils/toast.tsx';
 import Header from '../components/Header';
 import Calendar from '../components/Calendar';
 import CompletedActivitiesCalendar from '../components/CompletedActivitiesCalendar';
-import { useApi } from '../hooks/useApi';
+import { useApi, useApiSubmit } from '../hooks/useApi';
 import '../styles/Dashboard.css';
 
 function AthleteDashboard() {
@@ -25,40 +25,39 @@ function AthleteDashboard() {
   
   const loading = loadingSessions || loadingActivities;
 
-  useEffect(() => {
-    loadAthleteData();
-  }, []);
+  // Upload GPX file using useApiSubmit
+  const { submit: uploadGPX } = useApiSubmit(async (file: File) => {
+    if (!athleteId) throw new Error('No athlete ID');
+    const res = await activitiesService.uploadGPX(file, athleteId);
+    await Promise.all([refetchSessions(), refetchActivities()]);
+    showSuccess('Fichier GPX importé avec succès');
+    return res;
+  });
 
-  const loadAthleteData = async () => {
-    try {
-      // Récupérer le profil de l'athlète connecté via la route /me
+  useEffect(() => {
+    const loadAthleteData = async () => {
+      // Get athlete profile via /me route
       const athleteRes = await athletesService.getMe();
       const athlete = athleteRes.data;
       
       if (athlete) {
         setAthleteId(athlete.id);
       }
-    } catch (error) {
+    };
+    
+    loadAthleteData().catch(error => {
       console.error('Error loading athlete data:', error);
-    }
-  };
-
-  const loadData = async () => {
-    await Promise.all([refetchSessions(), refetchActivities()]);
-  };
+    });
+  }, []);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file || !athleteId) return;
+    await uploadGPX(file);
+  };
 
-    try {
-      await activitiesService.uploadGPX(file, athleteId);
-      await loadData();
-      showSuccess('Fichier GPX importé avec succès');
-    } catch (error) {
-      console.error('Error uploading GPX:', error);
-      showError('Erreur lors de l\'import', error as Error);
-    }
+  const loadData = async () => {
+    await Promise.all([refetchSessions(), refetchActivities()]);
   };
 
   if (loading) {
