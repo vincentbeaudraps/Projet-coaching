@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { invitationsService } from '../services/api';
+import { useApi, useApiSubmit } from '../hooks/useApi';
 import Header from '../components/Header';
 import '../styles/InvitationsPage.css';
 
@@ -15,46 +16,47 @@ interface InvitationCode {
 }
 
 function InvitationsPage() {
-  const [codes, setCodes] = useState<InvitationCode[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [generating, setGenerating] = useState(false);
   const [newCode, setNewCode] = useState<string | null>(null);
-  const [error, setError] = useState('');
   const [copiedCode, setCopiedCode] = useState('');
 
-  useEffect(() => {
-    loadCodes();
-  }, []);
+  // Load codes using useApi
+  const { data: codesData, loading, error: loadError, refetch } = useApi<InvitationCode[]>(
+    () => invitationsService.getMyCodes().then(res => res.data),
+    []
+  );
+  
+  const codes = codesData || [];
 
-  const loadCodes = async () => {
-    try {
-      setLoading(true);
-      const response = await invitationsService.getMyCodes();
-      setCodes(response.data);
-      setError('');
-    } catch (err: any) {
-      setError('Erreur lors du chargement des codes');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleGenerate = async () => {
-    try {
-      setGenerating(true);
+  // Generate code using useApiSubmit
+  const { submit: generateCode, loading: generating, error: generateError } = useApiSubmit(
+    async (_?: void) => {
       const response = await invitationsService.generate();
       setNewCode(response.data.code);
-      await loadCodes();
-      setError('');
       
       // Auto-hide after 10 seconds
       setTimeout(() => setNewCode(null), 10000);
-    } catch (err: any) {
-      setError('Erreur lors de la génération du code');
-    } finally {
-      setGenerating(false);
+      
+      // Refetch codes to update the list
+      await refetch();
+      
+      return response;
     }
+  );
+
+  // Delete code using useApiSubmit
+  const { submit: deleteCode, error: deleteError } = useApiSubmit(
+    async (code: string) => {
+      const response = await invitationsService.delete(code);
+      await refetch();
+      return response;
+    }
+  );
+
+  // Combine errors
+  const error = loadError || generateError || deleteError;
+
+  const handleGenerate = async () => {
+    await generateCode(undefined);
   };
 
   const handleCopy = (code: string) => {
@@ -65,13 +67,7 @@ function InvitationsPage() {
 
   const handleDelete = async (code: string) => {
     if (!window.confirm('Voulez-vous vraiment supprimer ce code ?')) return;
-
-    try {
-      await invitationsService.delete(code);
-      await loadCodes();
-    } catch (err: any) {
-      setError('Erreur lors de la suppression');
-    }
+    await deleteCode(code);
   };
 
   if (loading) {

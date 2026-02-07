@@ -4,6 +4,7 @@ import { athletesService, sessionsService } from '../services/api';
 import { Athlete } from '../types';
 import { calculateHeartRateZones, calculateVMAZones } from '../utils/trainingZones';
 import { showSuccess, showError, showWarning, showLoading, dismissToast } from '../utils/toast.tsx';
+import { useApi, useApiSubmit } from '../hooks/useApi';
 import Header from '../components/Header';
 import '../styles/SessionBuilder.css';
 
@@ -44,7 +45,14 @@ interface SessionTemplate {
 function SessionBuilderPage() {
   const navigate = useNavigate();
   const { id } = useParams(); // Si on édite une séance existante
-  const [athletes, setAthletes] = useState<Athlete[]>([]);
+  
+  // Load athletes using useApi
+  const { data: athletesData, loading: athletesLoading } = useApi<Athlete[]>(
+    () => athletesService.getAll().then(res => res.data),
+    []
+  );
+  const athletes = athletesData || [];
+  
   const [selectedAthlete, setSelectedAthlete] = useState('');
   const [selectedAthleteData, setSelectedAthleteData] = useState<Athlete | null>(null);
   const [title, setTitle] = useState('');
@@ -53,13 +61,38 @@ function SessionBuilderPage() {
   const [blocks, setBlocks] = useState<SessionBlock[]>([]);
   const [showTemplates, setShowTemplates] = useState(false);
   const [globalNotes, setGlobalNotes] = useState('');
-  const [loading, setLoading] = useState(false);
   const [estimatedDuration, setEstimatedDuration] = useState(0);
   const [estimatedDistance, setEstimatedDistance] = useState(0);
   const [customTemplates, setCustomTemplates] = useState<SessionTemplate[]>([]);
   const [showSaveTemplateModal, setShowSaveTemplateModal] = useState(false);
   const [templateName, setTemplateName] = useState('');
   const [templateDescription, setTemplateDescription] = useState('');
+
+  // Create/update session using useApiSubmit
+  const { submit: saveSession, loading: saving } = useApiSubmit(
+    async (data: any) => {
+      const toastId = showLoading(id ? 'Modification en cours...' : 'Création en cours...');
+      try {
+        let response;
+        if (id) {
+          response = await sessionsService.update(id, data);
+          dismissToast(toastId);
+          showSuccess('Séance modifiée avec succès !');
+        } else {
+          response = await sessionsService.create(data);
+          dismissToast(toastId);
+          showSuccess('Séance créée avec succès !');
+        }
+        navigate('/dashboard');
+        return response;
+      } catch (error) {
+        dismissToast(toastId);
+        throw error;
+      }
+    }
+  );
+
+  const loading = athletesLoading || saving;
 
   // Templates pré-définis
   const templates: SessionTemplate[] = [
@@ -226,83 +259,66 @@ function SessionBuilderPage() {
     }
   ];
 
+  // Load session if in edit mode
   useEffect(() => {
-    loadAthletes();
-    
-    // Charger la séance si on est en mode édition
     if (id) {
-      loadSession(id);
-    }
-  }, [id]);
-
-  const loadSession = async (sessionId: string) => {
-    try {
-      setLoading(true);
-      const response = await sessionsService.getById(sessionId);
-      const session = response.data;
+      const loadSession = async () => {
+        const response = await sessionsService.getById(id);
+        const session = response.data;
+        
+        // Pre-fill the form
+        setSelectedAthlete(session.athlete_id);
+        setTitle(session.title);
+        setDate(new Date(session.start_date).toISOString().split('T')[0]);
+        setSessionType(session.type || 'run');
+        setGlobalNotes(session.notes || session.description || '');
+        
+        // Load blocks if available
+        if (session.blocks) {
+          try {
+            const loadedBlocks = typeof session.blocks === 'string' 
+              ? JSON.parse(session.blocks) 
+              : session.blocks;
+            
+            // Add IDs if missing
+            const blocksWithIds = loadedBlocks.map((block: any, idx: number) => ({
+              ...block,
+              id: block.id || `${Date.now()}-${idx}`
+            }));
+            
+            setBlocks(blocksWithIds);
+          } catch (error) {
+            console.error('Error parsing blocks:', error);
+          }
+        }
+      };
       
-      // Pré-remplir le formulaire
-      setSelectedAthlete(session.athlete_id);
-      setTitle(session.title);
-      setDate(new Date(session.start_date).toISOString().split('T')[0]);
-      setSessionType(session.type || 'run');
-      setGlobalNotes(session.notes || session.description || '');
-      
-      // Charger les blocs si disponibles
-      if (session.blocks) {
-        try {
-          const loadedBlocks = typeof session.blocks === 'string' 
-            ? JSON.parse(session.blocks) 
-            : session.blocks;
-          
-          // Ajouter des IDs si manquants
-          const blocksWithIds = loadedBlocks.map((block: any, idx: number) => ({
-            ...block,
-            id: block.id || `${Date.now()}-${idx}`
-          }));
-          
-          setBlocks(blocksWithIds);
-      } catch (error) {
-        console.error('Erreur parsing blocs:', error);
-      }
+      loadSession().catch(error => {
+        console.error('Error loading session:', error);
+        showError('Impossible de charger la séance', error as Error);
+        navigate('/dashboard');
+      });
     }
-  } catch (error) {
-    console.error('Erreur chargement séance:', error);
-    showError('Impossible de charger la séance', error as Error);
-    navigate('/dashboard');
-  } finally {
-    setLoading(false);
-  }
-};
+  }, [id, navigate]);
 
   useEffect(() => {
     calculateEstimates();
   }, [blocks]);
 
-  const loadAthletes = async () => {
-    try {
-      const response = await athletesService.getAll();
-      setAthletes(response.data);
-    } catch (error) {
-      console.error('Erreur chargement athlètes:', error);
-    }
-  };
-
-  // Charger les données complètes de l'athlète sélectionné
+  // Load athlete data when selected
   useEffect(() => {
     if (selectedAthlete) {
       const loadAthleteData = async () => {
-        try {
-          const response = await athletesService.getById(selectedAthlete);
-          setSelectedAthleteData(response.data);
-          console.log('📊 Données athlète chargées:', response.data);
-          console.log('VMA:', response.data.vma);
-          console.log('FC MAX:', response.data.max_heart_rate);
-        } catch (error) {
-          console.error('Erreur chargement données athlète:', error);
-        }
+        const response = await athletesService.getById(selectedAthlete);
+        setSelectedAthleteData(response.data);
+        console.log('📊 Données athlète chargées:', response.data);
+        console.log('VMA:', response.data.vma);
+        console.log('FC MAX:', response.data.max_heart_rate);
       };
-      loadAthleteData();
+      
+      loadAthleteData().catch(error => {
+        console.error('Erreur chargement données athlète:', error);
+      });
     } else {
       setSelectedAthleteData(null);
     }
@@ -485,50 +501,26 @@ function SessionBuilderPage() {
       showWarning('Veuillez sélectionner un athlète et ajouter au moins un bloc d\'entraînement');
       return;
     }
-
-    setLoading(true);
-    const toastId = showLoading(id ? 'Modification en cours...' : 'Création en cours...');
     
-    try {
-      // Convertir la date en format ISO avec horaire 08:00
-      const sessionDateTime = new Date(date + 'T08:00:00').toISOString();
-      
-      // Préparer les données de la séance
-      const sessionData = {
-        athleteId: selectedAthlete,
-        title,
-        description: globalNotes || `Séance ${id ? 'modifiée' : 'créée'} avec ${blocks.length} blocs`,
-        type: sessionType,
-        distance: estimatedDistance,
-        duration: estimatedDuration,
-        intensity: blocks.length > 0 ? blocks[0].intensity : 'moderate',
-        startDate: sessionDateTime,
-        blocks: JSON.stringify(blocks),
-        notes: globalNotes
-      };
+    // Convert date to ISO format with 08:00 time
+    const sessionDateTime = new Date(date + 'T08:00:00').toISOString();
+    
+    // Prepare session data
+    const sessionData = {
+      athleteId: selectedAthlete,
+      title,
+      description: globalNotes || `Séance ${id ? 'modifiée' : 'créée'} avec ${blocks.length} blocs`,
+      type: sessionType,
+      distance: estimatedDistance,
+      duration: estimatedDuration,
+      intensity: blocks.length > 0 ? blocks[0].intensity : 'moderate',
+      startDate: sessionDateTime,
+      blocks: JSON.stringify(blocks),
+      notes: globalNotes
+    };
 
-      console.log('Envoi des données:', sessionData);
-      
-      if (id) {
-        // Mode édition
-        await sessionsService.update(id, sessionData);
-        dismissToast(toastId);
-        showSuccess('Séance modifiée avec succès !');
-      } else {
-        // Mode création
-        await sessionsService.create(sessionData);
-        dismissToast(toastId);
-        showSuccess('Séance créée avec succès !');
-      }
-      
-      navigate('/dashboard');
-    } catch (error) {
-      console.error('Erreur sauvegarde séance:', error);
-      dismissToast(toastId);
-      showError(`Erreur lors de ${id ? 'la modification' : 'la création'} de la séance`, error as Error);
-    } finally {
-      setLoading(false);
-    }
+    console.log('Envoi des données:', sessionData);
+    await saveSession(sessionData);
   };
 
   // Removed unused helper functions: getIntensityLabel, getBlockTypeLabel

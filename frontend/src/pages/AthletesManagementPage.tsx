@@ -1,15 +1,30 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { athletesService } from '../services/api';
 import { Athlete } from '../types/index';
 import Header from '../components/Header';
 import AthleteMetrics from '../components/AthleteMetrics';
+import { useApi, useApiSubmit } from '../hooks/useApi';
 import '../styles/AthletesManagement.css';
 
 function AthletesManagementPage() {
-  const [athletes, setAthletes] = useState<Athlete[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const { data: athletesData, loading, error: loadError, refetch } = useApi<Athlete[]>(
+    () => athletesService.getAll().then(res => res.data),
+    []
+  );
+  
+  const athletes = athletesData || [];
+
+  const { submit: addAthlete, error: addError } = useApiSubmit(
+    athletesService.createAthleteAccount
+  );
+
+  const { submit: deleteAthlete, error: deleteError } = useApiSubmit(
+    athletesService.delete
+  );
+
+  const error = loadError || addError || deleteError;
+
   const [showAddForm, setShowAddForm] = useState(false);
   const [selectedAthleteForMetrics, setSelectedAthleteForMetrics] = useState<Athlete | null>(null);
   const navigate = useNavigate();
@@ -23,45 +38,21 @@ function AthletesManagementPage() {
     goals: ''
   });
 
-  useEffect(() => {
-    loadAthletes();
-  }, []);
-
-  const loadAthletes = async () => {
-    try {
-      setLoading(true);
-      const response = await athletesService.getAll();
-      setAthletes(response.data);
-      setError('');
-    } catch (err: any) {
-      setError('Erreur lors du chargement des athlètes');
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleAddAthlete = async (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      // D'abord créer le compte athlète
-      await athletesService.createAthleteAccount({
-        email: formData.email,
-        name: formData.name,
-        age: formData.age ? parseInt(formData.age) : undefined,
-        level: formData.level || undefined,
-        goals: formData.goals || undefined,
-      });
-      
-      // Recharger la liste
-      await loadAthletes();
-      
-      // Reset form
+    
+    const success = await addAthlete({
+      email: formData.email,
+      name: formData.name,
+      age: formData.age ? parseInt(formData.age) : undefined,
+      level: formData.level || undefined,
+      goals: formData.goals || undefined,
+    });
+
+    if (success) {
+      await refetch();
       setFormData({ email: '', name: '', age: '', level: '', goals: '' });
       setShowAddForm(false);
-      setError('');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Erreur lors de l\'ajout de l\'athlète');
     }
   };
 
@@ -70,24 +61,15 @@ function AthletesManagementPage() {
       return;
     }
     
-    try {
-      setError(''); // Clear previous errors
-      await athletesService.delete(athleteId);
-      await loadAthletes();
-      // Optionally show success message
+    const success = await deleteAthlete(athleteId);
+    if (success) {
+      await refetch();
       alert('Athlète supprimé avec succès');
-    } catch (err: any) {
-      const errorMessage = err.response?.data?.message || err.message || 'Erreur lors de la suppression';
-      setError(errorMessage);
-      console.error('Delete error:', err);
-      console.error('Error response:', err.response);
     }
   };
 
-  const handleMetricsUpdate = (updatedAthlete: Athlete) => {
-    setAthletes(prevAthletes =>
-      prevAthletes.map(a => a.id === updatedAthlete.id ? updatedAthlete : a)
-    );
+  const handleMetricsUpdate = (_updatedAthlete: Athlete) => {
+    refetch();
     setSelectedAthleteForMetrics(null);
   };
 

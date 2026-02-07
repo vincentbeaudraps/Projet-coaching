@@ -3,6 +3,7 @@ import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { athletesService } from '../services/api';
 import { showSuccess, showError } from '../utils/toast';
+import { useApi, useApiSubmit } from '../hooks/useApi';
 import Header from '../components/Header';
 import '../styles/AthleteEnrichedDashboard.css';
 
@@ -70,12 +71,71 @@ interface AnnualVolume {
 
 export default function AthleteEnrichedDashboard() {
   const user = useAuthStore((state) => state.user);
-  const [profile, setProfile] = useState<AthleteProfile | null>(null);
-  const [records, setRecords] = useState<PersonalRecord[]>([]);
-  const [upcomingRaces, setUpcomingRaces] = useState<UpcomingRace[]>([]);
-  const [yearlyStats, setYearlyStats] = useState<YearlyStats[]>([]);
-  const [annualVolumes, setAnnualVolumes] = useState<AnnualVolume[]>([]);
-  const [loading, setLoading] = useState(true);
+  
+  // Load all dashboard data using useApi
+  const { data: dashboardDataWrapper, loading, refetch } = useApi(
+    async () => {
+      // Load athlete profile
+      const profileRes = await athletesService.getMe();
+      const profile = profileRes.data;
+
+      // Load personal records (with silent error handling)
+      let records: PersonalRecord[] = [];
+      try {
+        const recordsRes = await athletesService.getMyRecords();
+        records = recordsRes.data || [];
+      } catch (err) {
+        console.warn('Records not available yet:', err);
+      }
+
+      // Load upcoming races (with silent error handling)
+      let upcomingRaces: UpcomingRace[] = [];
+      try {
+        const racesRes = await athletesService.getMyRaces();
+        upcomingRaces = racesRes.data || [];
+      } catch (err) {
+        console.warn('Races not available yet:', err);
+      }
+
+      // Load yearly stats (with silent error handling)
+      let yearlyStats: YearlyStats[] = [];
+      try {
+        const statsRes = await athletesService.getYearlyStats();
+        yearlyStats = statsRes.data || [];
+      } catch (err) {
+        console.warn('Stats not available yet:', err);
+      }
+
+      // Load annual volumes (with silent error handling)
+      let annualVolumes: AnnualVolume[] = [];
+      try {
+        const volumesRes = await athletesService.getAnnualVolumes();
+        annualVolumes = volumesRes.data || [];
+      } catch (err) {
+        console.warn('Annual volumes not available yet:', err);
+      }
+
+      return {
+        data: {
+          profile,
+          records,
+          upcomingRaces,
+          yearlyStats,
+          annualVolumes
+        }
+      };
+    },
+    []
+  );
+
+  const dashboardData = dashboardDataWrapper || {} as any;
+
+  const profile = dashboardData?.profile || null;
+  const records = dashboardData?.records || [];
+  const upcomingRaces = dashboardData?.upcomingRaces || [];
+  const yearlyStats = dashboardData?.yearlyStats || [];
+  const annualVolumes = dashboardData?.annualVolumes || [];
+
   const [editMode, setEditMode] = useState(false);
   const [editForm, setEditForm] = useState<any>({});
   const [addRecordMode, setAddRecordMode] = useState(false);
@@ -110,11 +170,92 @@ export default function AthleteEnrichedDashboard() {
     notes: ''
   });
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
+  // Update profile using useApiSubmit
+  const { submit: updateProfile } = useApiSubmit(async (data: any) => {
+    const res = await athletesService.updateMe(data);
+    setEditMode(false);
+    showSuccess('Profil mis à jour avec succès');
+    await refetch();
+    return res;
+  });
 
-  // Initialiser le formulaire quand le profil est chargé
+  // Add record using useApiSubmit
+  const { submit: addRecord } = useApiSubmit(async (data: any) => {
+    if (!data.distance_km || !data.time_seconds || !data.date_achieved) {
+      throw new Error('Veuillez remplir tous les champs obligatoires');
+    }
+    const res = await athletesService.addRecord(data);
+    setAddRecordMode(false);
+    setRecordForm({
+      distance_type: '5km',
+      distance_km: 5,
+      time_seconds: '',
+      time_display: '',
+      pace: '',
+      location: '',
+      race_name: '',
+      date_achieved: '',
+      notes: ''
+    });
+    showSuccess('Record personnel ajouté avec succès');
+    await refetch();
+    return res;
+  });
+
+  // Add race using useApiSubmit
+  const { submit: addRace } = useApiSubmit(async (data: any) => {
+    if (!data.name || !data.date || !data.distance_km) {
+      throw new Error('Veuillez remplir tous les champs obligatoires');
+    }
+    const res = await athletesService.addRace(data);
+    setAddRaceMode(false);
+    setRaceForm({
+      name: '',
+      location: '',
+      date: '',
+      distance_km: 21.1,
+      distance_label: 'Semi-Marathon',
+      elevation_gain: '',
+      target_time: '',
+      registration_status: 'planned',
+      race_url: '',
+      notes: ''
+    });
+    showSuccess('Course ajoutée avec succès');
+    await refetch();
+    return res;
+  });
+
+  // Add/update volume using useApiSubmit
+  const { submit: saveVolume } = useApiSubmit(async (data: any) => {
+    if (!data.year || !data.volume_km) {
+      throw new Error('Veuillez remplir l\'année et le volume');
+    }
+    const res = await athletesService.saveAnnualVolume({
+      year: parseInt(data.year.toString()),
+      volume_km: parseFloat(data.volume_km),
+      notes: data.notes
+    });
+    setAddVolumeMode(false);
+    setVolumeForm({
+      year: new Date().getFullYear(),
+      volume_km: '',
+      notes: ''
+    });
+    showSuccess('Volume annuel enregistré avec succès');
+    await refetch();
+    return res;
+  });
+
+  // Delete volume using useApiSubmit
+  const { submit: deleteVolume } = useApiSubmit(async (year: number) => {
+    const res = await athletesService.deleteAnnualVolume(year);
+    showSuccess('Volume supprimé avec succès');
+    await refetch();
+    return res;
+  });
+
+  // Initialize form when profile is loaded
   useEffect(() => {
     if (profile) {
       setEditForm({
@@ -134,66 +275,8 @@ export default function AthleteEnrichedDashboard() {
     }
   }, [profile]);
 
-  const loadDashboardData = async () => {
-    setLoading(true);
-    try {
-      // Charger le profil de l'athlète
-      const profileRes = await athletesService.getMe();
-      setProfile(profileRes.data);
-
-      // Charger les records personnels (avec gestion d'erreur silencieuse)
-      try {
-        const recordsRes = await athletesService.getMyRecords();
-        setRecords(recordsRes.data || []);
-      } catch (err) {
-        console.warn('Records not available yet:', err);
-        setRecords([]);
-      }
-
-      // Charger les courses à venir (avec gestion d'erreur silencieuse)
-      try {
-        const racesRes = await athletesService.getMyRaces();
-        setUpcomingRaces(racesRes.data || []);
-      } catch (err) {
-        console.warn('Races not available yet:', err);
-        setUpcomingRaces([]);
-      }
-
-      // Charger les stats annuelles (avec gestion d'erreur silencieuse)
-      try {
-        const statsRes = await athletesService.getYearlyStats();
-        setYearlyStats(statsRes.data || []);
-      } catch (err) {
-        console.warn('Stats not available yet:', err);
-        setYearlyStats([]);
-      }
-
-      // Charger les volumes annuels manuels (avec gestion d'erreur silencieuse)
-      try {
-        const volumesRes = await athletesService.getAnnualVolumes();
-        setAnnualVolumes(volumesRes.data || []);
-      } catch (err) {
-        console.warn('Annual volumes not available yet:', err);
-        setAnnualVolumes([]);
-      }
-    } catch (error) {
-      console.error('Error loading dashboard data:', error);
-      showError('Erreur lors du chargement des données', error as Error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const handleSaveProfile = async () => {
-    try {
-      const res = await athletesService.updateMe(editForm);
-      setProfile(res.data);
-      setEditMode(false);
-      showSuccess('Profil mis à jour avec succès');
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      showError('Erreur lors de la mise à jour du profil', error as Error);
-    }
+    await updateProfile(editForm);
   };
 
   const handleFormChange = (field: string, value: any) => {
@@ -233,112 +316,20 @@ export default function AthleteEnrichedDashboard() {
   };
 
   const handleAddRecord = async () => {
-    try {
-      // Validate required fields
-      if (!recordForm.distance_km || !recordForm.time_seconds || !recordForm.date_achieved) {
-        showError('Veuillez remplir tous les champs obligatoires', new Error('Validation'));
-        return;
-      }
-
-      const res = await athletesService.addRecord(recordForm);
-      setRecords([...records, res.data]);
-      setAddRecordMode(false);
-      setRecordForm({
-        distance_type: '5km',
-        distance_km: 5,
-        time_seconds: '',
-        time_display: '',
-        pace: '',
-        location: '',
-        race_name: '',
-        date_achieved: '',
-        notes: ''
-      });
-      showSuccess('Record personnel ajouté avec succès');
-    } catch (error) {
-      console.error('Error adding record:', error);
-      showError('Erreur lors de l\'ajout du record', error as Error);
-    }
+    await addRecord(recordForm);
   };
 
   const handleAddRace = async () => {
-    try {
-      // Validate required fields
-      if (!raceForm.name || !raceForm.date || !raceForm.distance_km) {
-        showError('Veuillez remplir tous les champs obligatoires', new Error('Validation'));
-        return;
-      }
-
-      const res = await athletesService.addRace(raceForm);
-      setUpcomingRaces([...upcomingRaces, res.data]);
-      setAddRaceMode(false);
-      setRaceForm({
-        name: '',
-        location: '',
-        date: '',
-        distance_km: 21.1,
-        distance_label: 'Semi-Marathon',
-        elevation_gain: '',
-        target_time: '',
-        registration_status: 'planned',
-        race_url: '',
-        notes: ''
-      });
-      showSuccess('Course ajoutée avec succès');
-    } catch (error) {
-      console.error('Error adding race:', error);
-      showError('Erreur lors de l\'ajout de la course', error as Error);
-    }
+    await addRace(raceForm);
   };
 
   const handleAddVolume = async () => {
-    try {
-      // Validate required fields
-      if (!volumeForm.year || !volumeForm.volume_km) {
-        showError('Veuillez remplir l\'année et le volume', new Error('Validation'));
-        return;
-      }
-
-      const res = await athletesService.saveAnnualVolume({
-        year: parseInt(volumeForm.year.toString()),
-        volume_km: parseFloat(volumeForm.volume_km),
-        notes: volumeForm.notes
-      });
-      
-      // Update the list
-      const existingIndex = annualVolumes.findIndex(v => v.year === res.data.year);
-      if (existingIndex >= 0) {
-        const updated = [...annualVolumes];
-        updated[existingIndex] = res.data;
-        setAnnualVolumes(updated);
-      } else {
-        setAnnualVolumes([...annualVolumes, res.data]);
-      }
-      
-      setAddVolumeMode(false);
-      setVolumeForm({
-        year: new Date().getFullYear(),
-        volume_km: '',
-        notes: ''
-      });
-      showSuccess('Volume annuel enregistré avec succès');
-    } catch (error) {
-      console.error('Error adding volume:', error);
-      showError('Erreur lors de l\'enregistrement du volume', error as Error);
-    }
+    await saveVolume(volumeForm);
   };
 
   const handleDeleteVolume = async (year: number) => {
     if (!confirm(`Supprimer le volume pour l'année ${year} ?`)) return;
-    
-    try {
-      await athletesService.deleteAnnualVolume(year);
-      setAnnualVolumes(annualVolumes.filter(v => v.year !== year));
-      showSuccess('Volume supprimé avec succès');
-    } catch (error) {
-      console.error('Error deleting volume:', error);
-      showError('Erreur lors de la suppression du volume', error as Error);
-    }
+    await deleteVolume(year);
   };
 
   const calculateVDOT = (timeSeconds: number, distanceKm: number): number => {
