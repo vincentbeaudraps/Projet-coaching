@@ -2,13 +2,13 @@
 
 **Date**: 7 février 2026  
 **Focus**: Migration massive des pages frontend vers hooks `useApi` et `useApiSubmit`  
-**Statut**: ✅ 4 pages migrées avec succès
+**Statut**: ✅ 7 pages migrées avec succès (41% du frontend)
 
 ---
 
 ## 📊 Résultats Session 5
 
-### Pages Migrées (4/17)
+### Pages Migrées (7/17) - 41%
 
 #### 1. ✅ **InvitationsPage.tsx**
 - **Try-catch éliminés**: 3
@@ -40,11 +40,29 @@
   - `handleAddVolume()` → `useApiSubmit` avec refetch
   - `handleDeleteVolume()` → `useApiSubmit` avec refetch
   - Gestion d'erreurs silencieuse pour endpoints optionnels
+  - Fixed all TypeScript implicit any types
 
 #### 4. ✅ **AthletesManagementPage.tsx** (fix TypeScript)
 - **Corrections**: Types null-safety
 - **Pattern adopté**: `const athletes = athletesData || []`
 - Suppression des unused `loading` parameters
+
+#### 5. ✅ **AthleteProfilePage.tsx**
+- **Try-catch éliminés**: 3
+- **Lignes économisées**: ~50
+- **Changements**:
+  - `loadAthleteData()` → `useApi` avec agrégation de 3 endpoints (profile, sessions, performances)
+  - `handleUpdate()` → `useApiSubmit` avec refetch
+  - `handleDelete()` → `useApiSubmit` avec navigation
+  - Form initialization avec useEffect sur athlete
+
+#### 6. ✅ **AthleteRaceHistory.tsx**
+- **Try-catch éliminés**: 1
+- **Lignes économisées**: ~15
+- **Changements**:
+  - `loadRecords()` → `useApi<PersonalRecord[]>`
+  - Removed manual loading/error state management
+  - Simplified component structure
 
 ---
 
@@ -52,11 +70,11 @@
 
 | Métrique | Valeur | Progression |
 |----------|--------|-------------|
-| **Pages migrées** | 4 | 5/17 (29%) |
-| **Try-catch éliminés** | 19 | ~35% frontend |
-| **Lignes économisées** | ~190 | Estimation |
+| **Pages migrées** | 7 | 7/17 (41%) |
+| **Try-catch éliminés** | 23 | ~42% frontend |
+| **Lignes économisées** | ~255 | Estimation |
 | **Erreurs TypeScript** | 0 | ✅ Toutes résolues |
-| **Commits** | 1 | Clean & atomique |
+| **Commits** | 4 | Clean & atomiques |
 
 ---
 
@@ -135,13 +153,13 @@ const handleSubmit = async (formData) => {
 - ✅ **Try-catch éliminés**: 68 (~85%)
 - ✅ **Lignes économisées**: ~860
 
-### Frontend (En Cours)
-- ⏳ **Pages migrées**: 5/17 (29%)
-- ⏳ **Try-catch éliminés**: ~19/55 (~35%)
-- ⏳ **Lignes économisées**: ~190
+### Frontend (Session 5 Complétée)
+- ⏳ **Pages migrées**: 7/17 (41%)
+- ⏳ **Try-catch éliminés**: ~23/55 (~42%)
+- ⏳ **Lignes économisées**: ~255
 
 ### Total
-- **Progression**: ~62% complet
+- **Progression**: ~67% complet (backend 90% + frontend 41%)
 - **ROI**: 20:1 (estimation)
 - **Score qualité**: 9/10
 
@@ -150,22 +168,21 @@ const handleSubmit = async (formData) => {
 ## 📋 Prochaines Pages à Migrer (Session 6)
 
 ### Priorité Haute (4-5 try-catch chacune)
-1. ⏳ **AthleteProfilePage.tsx** - 3 try-catch
-2. ⏳ **ConnectedDevicesPage.tsx** - Estimation 2-3 try-catch
-3. ⏳ **AthleteRaceHistory.tsx** - 1 try-catch
-4. ⏳ **CoachAthleteDetailPage.tsx** - Estimation 4-5 try-catch
+1. ⏳ **ConnectedDevicesPage.tsx** - Estimation 2-3 try-catch
+2. ⏳ **CoachAthleteDetailPage.tsx** - Estimation 4-5 try-catch
 
 ### Priorité Moyenne (1-3 try-catch chacune)
-5. ⏳ **AthleteDashboard.tsx**
-6. ⏳ **CoachDashboard.tsx**
-7. ⏳ **LoginPage.tsx**
-8. ⏳ **RegisterPage.tsx**
+3. ⏳ **AthleteDashboard.tsx**
+4. ⏳ **CoachDashboard.tsx**
+5. ⏳ **LoginPage.tsx**
+6. ⏳ **RegisterPage.tsx**
+7. ⏳ **MessagesPage.tsx**
 
 ### Estimation Totale Restante
-- **Pages**: 12 restantes
-- **Try-catch**: ~36 restants
-- **Lignes à économiser**: ~500-600
-- **Temps estimé**: 2-3 sessions
+- **Pages**: 10 restantes
+- **Try-catch**: ~32 restants
+- **Lignes à économiser**: ~350-400
+- **Temps estimé**: 1-2 sessions
 
 ---
 
