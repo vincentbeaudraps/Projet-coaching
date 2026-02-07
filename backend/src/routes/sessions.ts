@@ -84,196 +84,191 @@ router.post('/', authenticateToken, authorizeRole('coach'), asyncHandler(async (
 }));
 
 // Get sessions for athlete
-router.get('/athlete/:athleteId', authenticateToken, async (req, res) => {
-  try {
-    const { athleteId } = req.params;
-    const { 
-      search, 
-      type, 
-      intensity, 
-      dateFrom, 
-      dateTo, 
-      minDuration, 
-      maxDuration,
-      hasZones,
-      status 
-    } = req.query;
+router.get('/athlete/:athleteId', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const { athleteId } = req.params;
+  const userId = req.userId!;
+  const userRole = req.userRole!;
+  const { 
+    search, 
+    type, 
+    intensity, 
+    dateFrom, 
+    dateTo, 
+    minDuration, 
+    maxDuration,
+    hasZones,
+    status 
+  } = req.query;
 
-    let query = `SELECT * FROM training_sessions WHERE athlete_id = $1`;
-    const params: any[] = [athleteId];
-    let paramIndex = 2;
+  // Verify access
+  await athleteService.verifyAccess(athleteId, userId, userRole);
 
-    // Search filter
-    if (search) {
-      query += ` AND (LOWER(title) LIKE $${paramIndex} OR LOWER(notes) LIKE $${paramIndex})`;
-      params.push(`%${(search as string).toLowerCase()}%`);
-      paramIndex++;
-    }
+  let query = `SELECT * FROM training_sessions WHERE athlete_id = $1`;
+  const params: any[] = [athleteId];
+  let paramIndex = 2;
 
-    // Type filter
-    if (type) {
-      query += ` AND type = $${paramIndex}`;
-      params.push(type);
-      paramIndex++;
-    }
-
-    // Intensity filter
-    if (intensity) {
-      query += ` AND intensity = $${paramIndex}`;
-      params.push(intensity);
-      paramIndex++;
-    }
-
-    // Date range filter
-    if (dateFrom) {
-      query += ` AND start_date >= $${paramIndex}`;
-      params.push(dateFrom);
-      paramIndex++;
-    }
-
-    if (dateTo) {
-      query += ` AND start_date <= $${paramIndex}`;
-      params.push(dateTo);
-      paramIndex++;
-    }
-
-    // Duration filter
-    if (minDuration) {
-      query += ` AND duration >= $${paramIndex}`;
-      params.push(parseInt(minDuration as string));
-      paramIndex++;
-    }
-
-    if (maxDuration) {
-      query += ` AND duration <= $${paramIndex}`;
-      params.push(parseInt(maxDuration as string));
-      paramIndex++;
-    }
-
-    // Has zones filter
-    if (hasZones === 'true') {
-      query += ` AND blocks IS NOT NULL AND blocks != ''`;
-    } else if (hasZones === 'false') {
-      query += ` AND (blocks IS NULL OR blocks = '')`;
-    }
-
-    // Status filter (upcoming/completed)
-    if (status === 'upcoming') {
-      query += ` AND start_date > NOW()`;
-    } else if (status === 'completed') {
-      query += ` AND start_date <= NOW()`;
-    }
-
-    query += ` ORDER BY start_date DESC`;
-
-    const result = await client.query(query, params);
-
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Fetch sessions error:', error);
-    res.status(500).json({ message: 'Failed to fetch sessions' });
+  // Search filter
+  if (search) {
+    query += ` AND (LOWER(title) LIKE $${paramIndex} OR LOWER(notes) LIKE $${paramIndex})`;
+    params.push(`%${(search as string).toLowerCase()}%`);
+    paramIndex++;
   }
-});
+
+  // Type filter
+  if (type) {
+    query += ` AND type = $${paramIndex}`;
+    params.push(type);
+    paramIndex++;
+  }
+
+  // Intensity filter
+  if (intensity) {
+    query += ` AND intensity = $${paramIndex}`;
+    params.push(intensity);
+    paramIndex++;
+  }
+
+  // Date range filter
+  if (dateFrom) {
+    query += ` AND start_date >= $${paramIndex}`;
+    params.push(dateFrom);
+    paramIndex++;
+  }
+
+  if (dateTo) {
+    query += ` AND start_date <= $${paramIndex}`;
+    params.push(dateTo);
+    paramIndex++;
+  }
+
+  // Duration filter
+  if (minDuration) {
+    query += ` AND duration >= $${paramIndex}`;
+    params.push(parseInt(minDuration as string));
+    paramIndex++;
+  }
+
+  if (maxDuration) {
+    query += ` AND duration <= $${paramIndex}`;
+    params.push(parseInt(maxDuration as string));
+    paramIndex++;
+  }
+
+  // Has zones filter
+  if (hasZones === 'true') {
+    query += ` AND blocks IS NOT NULL AND blocks != ''`;
+  } else if (hasZones === 'false') {
+    query += ` AND (blocks IS NULL OR blocks = '')`;
+  }
+
+  // Status filter (upcoming/completed)
+  if (status === 'upcoming') {
+    query += ` AND start_date > NOW()`;
+  } else if (status === 'completed') {
+    query += ` AND start_date <= NOW()`;
+  }
+
+  query += ` ORDER BY start_date DESC`;
+
+  const result = await client.query(query, params);
+
+  res.json(result.rows);
+}));
 
 // Get all sessions for coach
-router.get('/', authenticateToken, authorizeRole('coach'), async (req, res) => {
-  try {
-    const coachId = req.userId;
-    const { 
-      search, 
-      athleteId,
-      type, 
-      intensity, 
-      dateFrom, 
-      dateTo, 
-      minDuration, 
-      maxDuration,
-      hasZones,
-      status 
-    } = req.query;
+router.get('/', authenticateToken, authorizeRole('coach'), asyncHandler(async (req: Request, res: Response) => {
+  const coachId = req.userId!;
+  const { 
+    search, 
+    athleteId,
+    type, 
+    intensity, 
+    dateFrom, 
+    dateTo, 
+    minDuration, 
+    maxDuration,
+    hasZones,
+    status 
+  } = req.query;
 
-    let query = `SELECT * FROM training_sessions WHERE coach_id = $1`;
-    const params: any[] = [coachId];
-    let paramIndex = 2;
+  let query = `SELECT * FROM training_sessions WHERE coach_id = $1`;
+  const params: any[] = [coachId];
+  let paramIndex = 2;
 
-    // Athlete filter
-    if (athleteId) {
-      query += ` AND athlete_id = $${paramIndex}`;
-      params.push(athleteId);
-      paramIndex++;
-    }
-
-    // Search filter
-    if (search) {
-      query += ` AND (LOWER(title) LIKE $${paramIndex} OR LOWER(notes) LIKE $${paramIndex})`;
-      params.push(`%${(search as string).toLowerCase()}%`);
-      paramIndex++;
-    }
-
-    // Type filter
-    if (type) {
-      query += ` AND type = $${paramIndex}`;
-      params.push(type);
-      paramIndex++;
-    }
-
-    // Intensity filter
-    if (intensity) {
-      query += ` AND intensity = $${paramIndex}`;
-      params.push(intensity);
-      paramIndex++;
-    }
-
-    // Date range filter
-    if (dateFrom) {
-      query += ` AND start_date >= $${paramIndex}`;
-      params.push(dateFrom);
-      paramIndex++;
-    }
-
-    if (dateTo) {
-      query += ` AND start_date <= $${paramIndex}`;
-      params.push(dateTo);
-      paramIndex++;
-    }
-
-    // Duration filter
-    if (minDuration) {
-      query += ` AND duration >= $${paramIndex}`;
-      params.push(parseInt(minDuration as string));
-      paramIndex++;
-    }
-
-    if (maxDuration) {
-      query += ` AND duration <= $${paramIndex}`;
-      params.push(parseInt(maxDuration as string));
-      paramIndex++;
-    }
-
-    // Has zones filter
-    if (hasZones === 'true') {
-      query += ` AND blocks IS NOT NULL AND blocks != ''`;
-    } else if (hasZones === 'false') {
-      query += ` AND (blocks IS NULL OR blocks = '')`;
-    }
-
-    // Status filter
-    if (status === 'upcoming') {
-      query += ` AND start_date > NOW()`;
-    } else if (status === 'completed') {
-      query += ` AND start_date <= NOW()`;
-    }
-
-    query += ` ORDER BY start_date DESC`;
-
-    const result = await client.query(query, params);
-
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Fetch sessions error:', error);
-    res.status(500).json({ message: 'Failed to fetch sessions' });
+  // Athlete filter
+  if (athleteId) {
+    query += ` AND athlete_id = $${paramIndex}`;
+    params.push(athleteId);
+    paramIndex++;
   }
-});
+
+  // Search filter
+  if (search) {
+    query += ` AND (LOWER(title) LIKE $${paramIndex} OR LOWER(notes) LIKE $${paramIndex})`;
+    params.push(`%${(search as string).toLowerCase()}%`);
+    paramIndex++;
+  }
+
+  // Type filter
+  if (type) {
+    query += ` AND type = $${paramIndex}`;
+    params.push(type);
+    paramIndex++;
+  }
+
+  // Intensity filter
+  if (intensity) {
+    query += ` AND intensity = $${paramIndex}`;
+    params.push(intensity);
+    paramIndex++;
+  }
+
+  // Date range filter
+  if (dateFrom) {
+    query += ` AND start_date >= $${paramIndex}`;
+    params.push(dateFrom);
+    paramIndex++;
+  }
+
+  if (dateTo) {
+    query += ` AND start_date <= $${paramIndex}`;
+    params.push(dateTo);
+    paramIndex++;
+  }
+
+  // Duration filter
+  if (minDuration) {
+    query += ` AND duration >= $${paramIndex}`;
+    params.push(parseInt(minDuration as string));
+    paramIndex++;
+  }
+
+  if (maxDuration) {
+    query += ` AND duration <= $${paramIndex}`;
+    params.push(parseInt(maxDuration as string));
+    paramIndex++;
+  }
+
+  // Has zones filter
+  if (hasZones === 'true') {
+    query += ` AND blocks IS NOT NULL AND blocks != ''`;
+  } else if (hasZones === 'false') {
+    query += ` AND (blocks IS NULL OR blocks = '')`;
+  }
+
+  // Status filter
+  if (status === 'upcoming') {
+    query += ` AND start_date > NOW()`;
+  } else if (status === 'completed') {
+    query += ` AND start_date <= NOW()`;
+  }
+
+  query += ` ORDER BY start_date DESC`;
+
+  const result = await client.query(query, params);
+
+  res.json(result.rows);
+}));
 
 // Update session
 router.put('/:sessionId', authenticateToken, authorizeRole('coach'), async (req, res) => {
