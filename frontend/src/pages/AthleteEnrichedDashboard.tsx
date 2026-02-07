@@ -2,33 +2,12 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { athletesService } from '../services/api';
-import { showSuccess, showError } from '../utils/toast';
+import { showSuccess } from '../utils/toast';
 import { useApi, useApiSubmit } from '../hooks/useApi';
 import Header from '../components/Header';
 import '../styles/AthleteEnrichedDashboard.css';
 
-interface AthleteProfile {
-  id: string;
-  user_id: string;
-  age?: number;
-  weight?: number;
-  height?: number;
-  vma?: number;
-  max_heart_rate?: number;
-  resting_heart_rate?: number;
-  birth_date?: string;
-  gender?: string;
-  profile_photo_url?: string;
-  city?: string;
-  running_experience_years?: number;
-  preferred_distances?: string;
-  injury_history?: string;
-  medical_notes?: string;
-  total_distance_km?: number;
-  total_time_hours?: number;
-  total_sessions?: number;
-}
-
+// Removed unused AthleteProfile interface - using inline type in useApi
 interface PersonalRecord {
   id: string;
   distance_type: string;
@@ -449,7 +428,7 @@ export default function AthleteEnrichedDashboard() {
           <div className="dashboard-card records-card">
             <h2>🏆 Records personnels</h2>
             <div className="records-grid">
-              {records.map(record => {
+              {records.map((record: PersonalRecord) => {
                 const vdot = calculateVDOT(record.time_seconds, record.distance_km);
                 return (
                   <div key={record.id} className="record-item">
@@ -492,7 +471,7 @@ export default function AthleteEnrichedDashboard() {
           <div className="dashboard-card races-card">
             <h2>🏁 Courses à venir</h2>
             <div className="races-list">
-              {upcomingRaces.map(race => {
+              {upcomingRaces.map((race: UpcomingRace) => {
                 const days = daysUntilRace(race.date);
                 return (
                   <div key={race.id} className="race-item">
@@ -526,10 +505,10 @@ export default function AthleteEnrichedDashboard() {
             <h2>📈 Volume annuel</h2>
             <div className="volume-stats">
               <div className="current-year-stat">
-                {annualVolumes.find(v => v.year === new Date().getFullYear()) ? (
+                {annualVolumes.find((v: AnnualVolume) => v.year === new Date().getFullYear()) ? (
                   <>
                     <div className="stat-value-large">
-                      {annualVolumes.find(v => v.year === new Date().getFullYear())?.volume_km || 0} km
+                      {annualVolumes.find((v: AnnualVolume) => v.year === new Date().getFullYear())?.volume_km || 0} km
                     </div>
                     <div className="stat-label">Cette année (manuel)</div>
                   </>
@@ -543,7 +522,7 @@ export default function AthleteEnrichedDashboard() {
             </div>
             
             <div className="volume-list">
-              {annualVolumes.sort((a, b) => b.year - a.year).slice(0, 5).map(volume => (
+              {annualVolumes.sort((a: AnnualVolume, b: AnnualVolume) => b.year - a.year).slice(0, 5).map((volume: AnnualVolume) => (
                 <div key={volume.year} className="volume-item">
                   <div className="volume-year-label">{volume.year}</div>
                   <div className="volume-km-value">{volume.volume_km} km</div>

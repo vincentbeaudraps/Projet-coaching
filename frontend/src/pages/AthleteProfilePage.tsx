@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../store/authStore';
 import { athletesService, sessionsService, performanceService } from '../services/api';
+import { useApi, useApiSubmit } from '../hooks/useApi';
 import { Athlete } from '../types/index';
 import Header from '../components/Header';
 import AthleteMetrics from '../components/AthleteMetrics';
@@ -12,11 +13,6 @@ function AthleteProfilePage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const user = useAuthStore((state) => state.user);
-  const [athlete, setAthlete] = useState<Athlete | null>(null);
-  const [sessions, setSessions] = useState<any[]>([]);
-  const [performances, setPerformances] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
   const [isEditing, setIsEditing] = useState(false);
   const [editData, setEditData] = useState({
     age: '',
@@ -24,21 +20,15 @@ function AthleteProfilePage() {
     goals: ''
   });
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
-  const [deleting, setDeleting] = useState(false);
   const [showMetricsModal, setShowMetricsModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'overview' | 'zones' | 'sessions'>('overview');
 
   // Pour les athlètes qui consultent leur propre profil
   const isOwnProfile = !id || (user?.role === 'athlete');
 
-  useEffect(() => {
-    loadAthleteData();
-  }, [id]);
-
-  const loadAthleteData = async () => {
-    try {
-      setLoading(true);
-      
+  // Load athlete data
+  const { data: athleteDataWrapper, loading, error: loadError, refetch } = useApi(
+    async () => {
       let athleteData;
       
       // Si pas d'ID ou utilisateur athlète, charger son propre profil
@@ -50,65 +40,72 @@ function AthleteProfilePage() {
         athleteData = athleteRes.data;
       }
 
-      setAthlete(athleteData);
-      
       // Charger les séances et performances
       const [sessionsRes, performancesRes] = await Promise.all([
         sessionsService.getForAthlete(athleteData.id),
         performanceService.getForAthlete(athleteData.id)
       ]);
       
-      setSessions(sessionsRes.data);
-      setPerformances(performancesRes.data);
-      
+      return {
+        data: {
+          athlete: athleteData,
+          sessions: sessionsRes.data,
+          performances: performancesRes.data
+        }
+      };
+    },
+    [id, isOwnProfile]
+  );
+
+  const athleteData = athleteDataWrapper || {} as any;
+  const athlete = athleteData.athlete || null;
+  const sessions = athleteData.sessions || [];
+  const performances = athleteData.performances || [];
+  const error = loadError || '';
+
+  // Update athlete using useApiSubmit
+  const { submit: updateAthlete } = useApiSubmit(async (data: any) => {
+    if (!athlete?.id) throw new Error('No athlete ID');
+    const res = await athletesService.update(athlete.id, {
+      age: data.age ? parseInt(data.age) : null,
+      level: data.level || null,
+      goals: data.goals || null
+    });
+    setIsEditing(false);
+    await refetch();
+    return res;
+  });
+
+  // Delete athlete using useApiSubmit
+  const { submit: deleteAthlete, loading: deleting } = useApiSubmit(async (_?: void) => {
+    if (!athlete?.id) throw new Error('No athlete ID');
+    const res = await athletesService.delete(athlete.id);
+    navigate('/athletes');
+    return res;
+  });
+
+  // Initialize edit form when athlete data loads
+  useEffect(() => {
+    if (athlete) {
       setEditData({
-        age: athleteData.age?.toString() || '',
-        level: athleteData.level || '',
-        goals: athleteData.goals || ''
+        age: athlete.age?.toString() || '',
+        level: athlete.level || '',
+        goals: athlete.goals || ''
       });
-    } catch (err: any) {
-      setError('Erreur lors du chargement du profil');
-      console.error(err);
-    } finally {
-      setLoading(false);
     }
-  };
+  }, [athlete]);
 
   const handleUpdate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!athlete?.id) return;
-
-    try {
-      await athletesService.update(athlete.id, {
-        age: editData.age ? parseInt(editData.age) : null,
-        level: editData.level || null,
-        goals: editData.goals || null
-      });
-      
-      await loadAthleteData();
-      setIsEditing(false);
-      setError('');
-    } catch (err: any) {
-      setError('Erreur lors de la mise à jour');
-    }
+    await updateAthlete(editData);
   };
 
   const handleDelete = async () => {
-    if (!athlete?.id) return;
-    
-    setDeleting(true);
-    try {
-      await athletesService.delete(athlete.id);
-      navigate('/athletes');
-    } catch (err: any) {
-      setError('Erreur lors de la suppression');
-      setDeleting(false);
-      setShowDeleteConfirm(false);
-    }
+    await deleteAthlete(undefined);
   };
 
   const handleMetricsUpdate = () => {
-    loadAthleteData(); // Recharger les données après mise à jour des métriques
+    refetch(); // Recharger les données après mise à jour des métriques
     setShowMetricsModal(false);
   };
 
