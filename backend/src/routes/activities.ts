@@ -7,6 +7,7 @@ import { parseGPX } from '../utils/gpxParser.js';
 import { asyncHandler, NotFoundError, BadRequestError } from '../middleware/errorHandler.js';
 import { athleteService } from '../services/athleteService.js';
 import { createCompletedActivitySchema, updateCompletedActivitySchema, validateRequest } from '../utils/validation.js';
+import { validateGpxFile, sanitizeFilename } from '../utils/fileValidation.js';
 
 const router: Router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -128,6 +129,16 @@ router.post('/upload-gpx', authenticateToken, upload.single('gpxFile'), asyncHan
   if (!athleteId) {
     throw new BadRequestError('athleteId is required');
   }
+
+  // Validate file MIME type and content
+  const validation = await validateGpxFile(req.file.buffer, req.file.originalname);
+  
+  if (!validation.valid) {
+    throw new BadRequestError(validation.error || 'Invalid GPX file');
+  }
+
+  // Sanitize filename
+  const safeFilename = sanitizeFilename(req.file.originalname);
 
   const gpxContent = req.file.buffer.toString('utf-8');
   

@@ -9,6 +9,20 @@ import { initializeDatabase } from './database/init.js';
 import { errorMiddleware } from './middleware/errorHandler.js';
 import { sanitizeRequest, additionalSecurityHeaders } from './middleware/security.js';
 import { csrfProtection, setCsrfCookie } from './middleware/csrf.js';
+import { 
+  initializeSentry, 
+  sentryRequestHandler, 
+  sentryTracingHandler, 
+  sentryErrorHandler,
+  sentryUserContextMiddleware,
+  sentryBreadcrumbMiddleware,
+  captureException
+} from './config/sentry.js';
+import { 
+  initializeRedis, 
+  advancedRateLimit, 
+  endpointRateLimits 
+} from './middleware/advancedRateLimit.js';
 import authRoutes from './routes/auth.js';
 import athletesRoutes from './routes/athletes.js';
 import sessionsRoutes from './routes/sessions.js';
@@ -23,20 +37,34 @@ import goalsRoutes from './routes/goals.js';
 import trainingPlansRoutes from './routes/training-plans.js';
 import logger, { logError, logInfo } from './utils/logger.js';
 
-// Global error handlers
+dotenv.config();
+
+// Global error handlers (now with Sentry)
 process.on('uncaughtException', (error) => {
   logError('Uncaught Exception:', error);
+  captureException(error, { context: 'uncaughtException' });
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
   logError('Unhandled Rejection:', { reason, promise });
+  captureException(reason as Error, { context: 'unhandledRejection' });
   process.exit(1);
 });
 
-dotenv.config();
-
 const app: Express = express();
+
+// Initialize Sentry (MUST BE FIRST)
+initializeSentry(app);
+
+// Initialize Redis for advanced rate limiting
+initializeRedis(process.env.REDIS_URL);
+
+// Sentry request handler (MUST BE FIRST middleware)
+app.use(sentryRequestHandler);
+
+// Sentry tracing
+app.use(sentryTracingHandler);
 
 // Force HTTPS in production
 if (process.env.NODE_ENV === 'production') {
@@ -148,6 +176,12 @@ app.use(additionalSecurityHeaders);
 // Sanitize all requests
 app.use(sanitizeRequest);
 
+// Sentry breadcrumb tracking
+app.use(sentryBreadcrumbMiddleware);
+
+// Sentry user context tracking
+app.use(sentryUserContextMiddleware);
+
 app.use(express.json({ limit: '10mb' })); // Limit payload size
 
 // Cookie parser (required for CSRF)
@@ -165,8 +199,11 @@ app.get('/api/csrf-token', (req, res) => {
   res.json({ csrfToken: req.cookies['csrf-token'] });
 });
 
-// Routes
-app.use('/api/auth', authLimiter, authRoutes);
+// Advanced rate limiting (role-based, per-user)
+app.use('/api/', advancedRateLimit());
+
+// Routes with specific rate limits
+app.use('/api/auth', advancedRateLimit(endpointRateLimits.login), authRoutes);
 app.use('/api/athletes', athletesRoutes);
 app.use('/api/sessions', sessionsRoutes);
 app.use('/api/messages', messagesRoutes);
@@ -188,6 +225,9 @@ app.get('/api/health', (req, res) => {
 app.use((req, res) => {
   res.status(404).json({ message: 'Route not found' });
 });
+
+// Sentry error handler (MUST BE BEFORE other error handlers)
+app.use(sentryErrorHandler);
 
 // Error handling middleware - doit être en dernier
 app.use(errorMiddleware);

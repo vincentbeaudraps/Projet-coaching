@@ -6,6 +6,14 @@ import { generateId } from '../utils/id.js';
 import { asyncHandler, BadRequestError, UnauthorizedError } from '../middleware/errorHandler.js';
 import { registerSchema, loginSchema, validateRequest } from '../utils/validation.js';
 import { sanitizeEmail, sanitizePlainText } from '../utils/sanitization.js';
+import { authenticateToken } from '../middleware/auth.js';
+import {
+  createRefreshToken,
+  verifyRefreshToken,
+  revokeRefreshToken,
+  revokeAllUserTokens,
+  getUserActiveTokens,
+} from '../services/refreshTokenService.js';
 
 const router: Router = express.Router();
 
@@ -68,7 +76,7 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
   }
 
   const jwtOptions: SignOptions & any = {
-    expiresIn: process.env.JWT_EXPIRE || '7d'
+    expiresIn: '15m' // Short-lived access token (15 minutes)
   };
   
   const token = jwt.sign(
@@ -77,9 +85,16 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
     jwtOptions
   );
 
+  // Create refresh token
+  const refreshToken = await createRefreshToken(userId, {
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
   res.status(201).json({
     user: { id: userId, email, name, role: 'athlete' },
     token,
+    refreshToken,
     message: coachId ? 'Compte créé et associé à votre coach' : 'Compte créé avec succès'
   });
 }));
@@ -107,7 +122,7 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
   }
 
   const jwtOptions: SignOptions & any = {
-    expiresIn: process.env.JWT_EXPIRE || '7d'
+    expiresIn: '15m' // Short-lived access token (15 minutes)
   };
   
   const token = jwt.sign(
@@ -116,6 +131,12 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
     jwtOptions
   );
 
+  // Create refresh token
+  const refreshToken = await createRefreshToken(user.id, {
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
   res.json({
     user: {
       id: user.id,
@@ -123,7 +144,103 @@ router.post('/login', asyncHandler(async (req: Request, res: Response) => {
       name: user.name,
       role: user.role
     },
-    token
+    token,
+    refreshToken,
+  });
+}));
+
+// Refresh token endpoint
+router.post('/refresh', asyncHandler(async (req: Request, res: Response) => {
+  const { refreshToken } = req.body;
+
+  if (!refreshToken) {
+    throw new BadRequestError('Refresh token required');
+  }
+
+  // Verify and rotate refresh token
+  const result = await verifyRefreshToken(refreshToken, {
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  });
+
+  if (!result.valid || !result.userId || !result.newToken) {
+    throw new UnauthorizedError(result.error || 'Invalid refresh token');
+  }
+
+  // Get user data
+  const userResult = await client.query(
+    'SELECT id, email, name, role FROM users WHERE id = $1',
+    [result.userId]
+  );
+
+  if (userResult.rows.length === 0) {
+    throw new UnauthorizedError('User not found');
+  }
+
+  const user = userResult.rows[0];
+
+  // Generate new access token
+  const jwtOptions: SignOptions & any = {
+    expiresIn: '15m' // Short-lived access token (15 minutes)
+  };
+
+  const newAccessToken = jwt.sign(
+    { id: user.id, role: user.role },
+    (process.env.JWT_SECRET || 'secret') as string,
+    jwtOptions
+  );
+
+  res.json({
+    token: newAccessToken,
+    refreshToken: result.newToken,
+    user: {
+      id: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    },
+  });
+}));
+
+// Logout endpoint (revoke refresh token)
+router.post('/logout', asyncHandler(async (req: Request, res: Response) => {
+  const { refreshToken } = req.body;
+
+  if (refreshToken) {
+    await revokeRefreshToken(refreshToken, 'user_logout');
+  }
+
+  res.json({ message: 'Logged out successfully' });
+}));
+
+// Logout all sessions (revoke all user's refresh tokens)
+router.post('/logout-all', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.userId!;
+
+  const revokedCount = await revokeAllUserTokens(userId, 'logout_all_sessions');
+
+  res.json({
+    message: `${revokedCount} session(s) terminated`,
+    revokedCount,
+  });
+}));
+
+// Get active sessions
+router.get('/sessions', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.userId!;
+
+  const sessions = await getUserActiveTokens(userId);
+
+  res.json({
+    sessions: sessions.map(s => ({
+      id: s.id,
+      createdAt: s.created_at,
+      lastUsedAt: s.last_used_at,
+      ipAddress: s.ip_address,
+      userAgent: s.user_agent,
+      expiresAt: s.expires_at,
+    })),
+    count: sessions.length,
   });
 }));
 
