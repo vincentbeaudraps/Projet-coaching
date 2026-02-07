@@ -6,6 +6,7 @@ import dotenv from 'dotenv';
 import { connectDB } from './database/connection.js';
 import { initializeDatabase } from './database/init.js';
 import { errorMiddleware } from './middleware/errorHandler.js';
+import { sanitizeRequest, additionalSecurityHeaders } from './middleware/security.js';
 import authRoutes from './routes/auth.js';
 import athletesRoutes from './routes/athletes.js';
 import sessionsRoutes from './routes/sessions.js';
@@ -34,9 +35,29 @@ dotenv.config();
 
 const app: Express = express();
 
+// Force HTTPS in production
+if (process.env.NODE_ENV === 'production') {
+  app.use((req, res, next) => {
+    if (req.header('x-forwarded-proto') !== 'https') {
+      return res.redirect(301, `https://${req.header('host')}${req.url}`);
+    }
+    next();
+  });
+}
+
 // Security Middleware
 app.use(helmet({
-  contentSecurityPolicy: {
+  contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'"],
+      imgSrc: ["'self'", "data:", "https:"],
+      connectSrc: ["'self'", process.env.FRONTEND_URL || "'self'"],
+      frameSrc: ["'none'"],
+      objectSrc: ["'none'"],
+    }
+  } : {
     directives: {
       defaultSrc: ["'self'"],
       scriptSrc: ["'self'", "'unsafe-inline'"],
@@ -46,6 +67,14 @@ app.use(helmet({
     }
   },
   crossOriginEmbedderPolicy: false,
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  },
+  noSniff: true,
+  xssFilter: true,
+  referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
 }));
 
 // Rate Limiting - Plus permissif en développement
@@ -77,9 +106,22 @@ const authLimiter = rateLimit({
   }
 });
 
-// CORS - Configuration explicite
+// CORS - Configuration explicite (dev et production)
+const allowedOrigins = process.env.NODE_ENV === 'production'
+  ? [process.env.FRONTEND_URL || 'https://yourapp.com']
+  : ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000'];
+
 app.use(cors({
-  origin: ['http://localhost:5173', 'http://localhost:5174', 'http://localhost:5175', 'http://localhost:3000'],
+  origin: (origin, callback) => {
+    // Allow requests with no origin (mobile apps, postman, etc)
+    if (!origin) return callback(null, true);
+    
+    if (allowedOrigins.indexOf(origin) !== -1) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
   credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization'],
@@ -96,6 +138,12 @@ if (process.env.NODE_ENV !== 'production') {
     next();
   });
 }
+
+// Additional Security Middleware
+app.use(additionalSecurityHeaders);
+
+// Sanitize all requests
+app.use(sanitizeRequest);
 
 app.use(express.json({ limit: '10mb' })); // Limit payload size
 

@@ -6,8 +6,23 @@ import { generateId } from '../utils/id.js';
 import { asyncHandler, NotFoundError, BadRequestError, ConflictError } from '../middleware/errorHandler.js';
 import { athleteService } from '../services/athleteService.js';
 import { trainingLoadService } from '../services/trainingLoadService.js';
+import { encryptSensitiveData, decryptSensitiveData } from '../utils/encryption.js';
+import { sanitizePlainText, sanitizeInput } from '../utils/sanitization.js';
 
 const router: Router = express.Router();
+
+// Helper function to decrypt sensitive athlete data
+function decryptAthleteData(athlete: any) {
+  if (!athlete) return athlete;
+  
+  return {
+    ...athlete,
+    max_heart_rate: athlete.max_heart_rate ? decryptSensitiveData(athlete.max_heart_rate) : null,
+    resting_heart_rate: athlete.resting_heart_rate ? decryptSensitiveData(athlete.resting_heart_rate) : null,
+    weight: athlete.weight ? decryptSensitiveData(athlete.weight) : null,
+    vo2max: athlete.vo2max ? decryptSensitiveData(athlete.vo2max) : null,
+  };
+}
 
 // Get current athlete profile (for authenticated athlete)
 router.get('/me', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
@@ -25,7 +40,8 @@ router.get('/me', authenticateToken, asyncHandler(async (req: Request, res: Resp
     throw new NotFoundError('Athlete profile not found');
   }
 
-  res.json(result.rows[0]);
+  const athlete = decryptAthleteData(result.rows[0]);
+  res.json(athlete);
 }));
 
 // Get all athletes for a coach
@@ -33,12 +49,15 @@ router.get('/', authenticateToken, authorizeRole('coach'), asyncHandler(async (r
   const coachId = req.userId!;
   const athletes = await athleteService.getAthletesByCoach(coachId);
   
+  // Decrypt sensitive data for all athletes
+  const decryptedAthletes = athletes.map(decryptAthleteData);
+  
   // Désactiver le cache pour les données dynamiques
   res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
   res.setHeader('Pragma', 'no-cache');
   res.setHeader('Expires', '0');
   
-  res.json(athletes);
+  res.json(decryptedAthletes);
 }));
 
 // Add athlete for coach
@@ -50,11 +69,15 @@ router.post('/', authenticateToken, authorizeRole('coach'), asyncHandler(async (
     throw new BadRequestError('User ID is required');
   }
 
+  // Sanitize text inputs
+  const sanitizedLevel = level ? sanitizePlainText(level) : null;
+  const sanitizedGoals = goals ? sanitizeInput(goals) : null;
+
   const result = await client.query(
     `INSERT INTO athletes (user_id, coach_id, age, level, goals) 
      VALUES ($1, $2, $3, $4, $5) 
      RETURNING *`,
-    [userId, coachId, age, level, goals]
+    [userId, coachId, age, sanitizedLevel, sanitizedGoals]
   );
 
   res.status(201).json(result.rows[0]);
@@ -81,7 +104,8 @@ router.get('/:athleteId', authenticateToken, asyncHandler(async (req: Request, r
     throw new NotFoundError('Athlete not found');
   }
 
-  res.json(result.rows[0]);
+  const athlete = decryptAthleteData(result.rows[0]);
+  res.json(athlete);
 }));
 
 // Update athlete
@@ -143,8 +167,7 @@ router.post('/create-account', authenticateToken, authorizeRole('coach'), asyncH
     [athleteId, userId, coachId, age, level, goals]
   );
 
-  // TODO: Send email with temporary password
-  console.log(`Temporary password for ${email}: ${tempPassword}`);
+  // TODO: Send email with temporary password (removed console.log for security)
 
   res.status(201).json({
     athlete: result.rows[0],
@@ -199,6 +222,12 @@ router.put('/:athleteId/metrics', authenticateToken, asyncHandler(async (req: Re
   // Verify authorization: coach owns athlete OR athlete is updating their own profile
   await athleteService.verifyAccess(athleteId, userId, userRole);
 
+  // Encrypt sensitive medical data
+  const encryptedHeartRate = max_heart_rate ? encryptSensitiveData(max_heart_rate) : null;
+  const encryptedRestingHR = resting_heart_rate ? encryptSensitiveData(resting_heart_rate) : null;
+  const encryptedWeight = weight ? encryptSensitiveData(weight) : null;
+  const encryptedVO2max = vo2max ? encryptSensitiveData(vo2max) : null;
+
   // Update athlete metrics
   const result = await client.query(
     `UPDATE athletes 
@@ -212,11 +241,11 @@ router.put('/:athleteId/metrics', authenticateToken, asyncHandler(async (req: Re
      WHERE id = $7
      RETURNING *`,
     [
-      max_heart_rate || null,
+      encryptedHeartRate,
       vma || null,
-      resting_heart_rate || null,
-      weight || null,
-      vo2max || null,
+      encryptedRestingHR,
+      encryptedWeight,
+      encryptedVO2max,
       lactate_threshold_pace || null,
       athleteId
     ]

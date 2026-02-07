@@ -311,9 +311,6 @@ function SessionBuilderPage() {
       const loadAthleteData = async () => {
         const response = await athletesService.getById(selectedAthlete);
         setSelectedAthleteData(response.data);
-        console.log('📊 Données athlète chargées:', response.data);
-        console.log('VMA:', response.data.vma);
-        console.log('FC MAX:', response.data.max_heart_rate);
       };
       
       loadAthleteData().catch(error => {
@@ -519,7 +516,6 @@ function SessionBuilderPage() {
       notes: globalNotes
     };
 
-    console.log('Envoi des données:', sessionData);
     await saveSession(sessionData);
   };
 

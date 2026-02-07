@@ -14,14 +14,6 @@ function AthletesManagementPage() {
   );
   
   const athletes = athletesData || [];
-  
-  // DEBUG: Log pour voir ce qui se passe
-  console.log('=== ATHLETES MANAGEMENT PAGE DEBUG ===');
-  console.log('athletesData:', athletesData);
-  console.log('athletes:', athletes);
-  console.log('athletes.length:', athletes.length);
-  console.log('loading:', loading);
-  console.log('loadError:', loadError);
 
   const { submit: addAthlete, error: addError } = useApiSubmit(
     athletesService.createAthleteAccount

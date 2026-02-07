@@ -4,23 +4,28 @@ import bcrypt from 'bcryptjs';
 import jwt, { SignOptions, VerifyOptions } from 'jsonwebtoken';
 import { generateId } from '../utils/id.js';
 import { asyncHandler, BadRequestError, UnauthorizedError } from '../middleware/errorHandler.js';
+import { registerSchema, loginSchema, validateRequest } from '../utils/validation.js';
+import { sanitizeEmail, sanitizePlainText } from '../utils/sanitization.js';
 
 const router: Router = express.Router();
 
 // Register
 router.post('/register', asyncHandler(async (req: Request, res: Response) => {
-  const { email, name, password, invitationCode } = req.body;
-
-  if (!email || !name || !password) {
-    throw new BadRequestError('Missing required fields');
-  }
+  // Validate input
+  const validatedData = validateRequest(registerSchema, req.body);
+  
+  // Sanitize inputs to prevent XSS
+  const email = sanitizeEmail(validatedData.email);
+  const name = sanitizePlainText(validatedData.name);
+  const password = validatedData.password; // Don't sanitize password, it will be hashed
+  const invitationCode = validatedData.invitationCode ? sanitizePlainText(validatedData.invitationCode) : null;
 
   // Check if invitation code is provided and valid
   let coachId = null;
   if (invitationCode) {
     const invitationResult = await client.query(
       `SELECT coach_id, used, expires_at FROM invitation_codes WHERE code = $1`,
-      [invitationCode.toUpperCase()]
+      [invitationCode?.toUpperCase() || '']
     );
 
     if (invitationResult.rows.length === 0) {
@@ -58,7 +63,7 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
 
     await client.query(
       `UPDATE invitation_codes SET used = TRUE, used_by = $1 WHERE code = $2`,
-      [userId, invitationCode.toUpperCase()]
+      [userId, invitationCode?.toUpperCase() || '']
     );
   }
 
@@ -81,7 +86,12 @@ router.post('/register', asyncHandler(async (req: Request, res: Response) => {
 
 // Login
 router.post('/login', asyncHandler(async (req: Request, res: Response) => {
-  const { email, password } = req.body;
+  // Validate input
+  const validatedData = validateRequest(loginSchema, req.body);
+  
+  // Sanitize email (password will be hashed anyway)
+  const email = sanitizeEmail(validatedData.email);
+  const password = validatedData.password;
 
   const result = await client.query('SELECT * FROM users WHERE email = $1', [email]);
 
