@@ -1,8 +1,9 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { athletesService } from '../services/api';
 import { showError } from '../utils/toast';
 import Header from '../components/Header';
+import { useApi } from '../hooks/useApi';
 import { 
   LineChart, Line, XAxis, YAxis, CartesianGrid, 
   Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell,
@@ -87,35 +88,20 @@ interface DetailedStats {
 function CoachAthleteDetailPage() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [athlete, setAthlete] = useState<Athlete | null>(null);
-  const [stats, setStats] = useState<DetailedStats | null>(null);
-  const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState<'overview' | 'load' | 'activities' | 'performance'>('overview');
   const [weeksFilter, setWeeksFilter] = useState(12);
 
-  useEffect(() => {
-    loadAthleteData();
-  }, [id, weeksFilter]);
+  const { data: athlete, loading: loadingAthlete } = useApi<Athlete>(
+    () => id ? athletesService.getById(id).then(res => res.data) : Promise.reject('No ID'),
+    [id]
+  );
 
-  const loadAthleteData = async () => {
-    if (!id) return;
+  const { data: stats, loading: loadingStats, refetch } = useApi<DetailedStats>(
+    () => id ? athletesService.getDetailedStats(id, weeksFilter).then(res => res.data) : Promise.reject('No ID'),
+    [id, weeksFilter]
+  );
 
-    try {
-      setLoading(true);
-      const [athleteRes, statsRes] = await Promise.all([
-        athletesService.getById(id),
-        athletesService.getDetailedStats(id, weeksFilter)
-      ]);
-
-      setAthlete(athleteRes.data);
-      setStats(statsRes.data);
-    } catch (error) {
-      console.error('Error loading athlete data:', error);
-      showError('Erreur lors du chargement des données', error as Error);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const loading = loadingAthlete || loadingStats;
 
   const formatDuration = (seconds: number): string => {
     const hours = Math.floor(seconds / 3600);

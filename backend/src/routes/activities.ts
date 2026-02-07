@@ -1,104 +1,104 @@
-import express, { Router } from 'express';
+import express, { Router, Request, Response } from 'express';
 import client from '../database/connection.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { generateId } from '../utils/id.js';
 import multer from 'multer';
 import { parseGPX } from '../utils/gpxParser.js';
+import { asyncHandler, NotFoundError, BadRequestError } from '../middleware/errorHandler.js';
+import { athleteService } from '../services/athleteService.js';
 
 const router: Router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
 
 // Get all activities for an athlete
-router.get('/athlete/:athleteId', authenticateToken, async (req, res) => {
-  try {
-    const { athleteId } = req.params;
-    const { startDate, endDate } = req.query;
+router.get('/athlete/:athleteId', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const { athleteId } = req.params;
+  const { startDate, endDate } = req.query;
+  const userId = req.userId!;
+  const userRole = req.userRole!;
 
-    let query = `
-      SELECT * FROM completed_activities 
-      WHERE athlete_id = $1
-    `;
-    const params: any[] = [athleteId];
+  // Verify access
+  await athleteService.verifyAccess(athleteId, userId, userRole);
 
-    if (startDate && endDate) {
-      query += ` AND start_date >= $2 AND start_date <= $3`;
-      params.push(startDate, endDate);
-    }
+  let query = `
+    SELECT * FROM completed_activities 
+    WHERE athlete_id = $1
+  `;
+  const params: any[] = [athleteId];
 
-    query += ` ORDER BY start_date DESC`;
-
-    const result = await client.query(query, params);
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Fetch activities error:', error);
-    res.status(500).json({ message: 'Failed to fetch activities' });
+  if (startDate && endDate) {
+    query += ` AND start_date >= $2 AND start_date <= $3`;
+    params.push(startDate, endDate);
   }
-});
+
+  query += ` ORDER BY start_date DESC`;
+
+  const result = await client.query(query, params);
+  res.json(result.rows);
+}));
 
 // Get all activities for coach (all athletes)
-router.get('/coach/all', authenticateToken, async (req, res) => {
-  try {
-    const coachId = req.userId;
-    const { startDate, endDate } = req.query;
+router.get('/coach/all', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const coachId = req.userId!;
+  const { startDate, endDate } = req.query;
 
-    let query = `
-      SELECT ca.*, a.id as athlete_id, u.name as athlete_name
-      FROM completed_activities ca
-      JOIN athletes a ON ca.athlete_id = a.id
-      JOIN users u ON a.user_id = u.id
-      WHERE a.coach_id = $1
-    `;
-    const params: any[] = [coachId];
+  let query = `
+    SELECT ca.*, a.id as athlete_id, u.name as athlete_name
+    FROM completed_activities ca
+    JOIN athletes a ON ca.athlete_id = a.id
+    JOIN users u ON a.user_id = u.id
+    WHERE a.coach_id = $1
+  `;
+  const params: any[] = [coachId];
 
-    if (startDate && endDate) {
-      query += ` AND ca.start_date >= $2 AND ca.start_date <= $3`;
-      params.push(startDate, endDate);
-    }
-
-    query += ` ORDER BY ca.start_date DESC`;
-
-    const result = await client.query(query, params);
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Fetch coach activities error:', error);
-    res.status(500).json({ message: 'Failed to fetch activities' });
+  if (startDate && endDate) {
+    query += ` AND ca.start_date >= $2 AND ca.start_date <= $3`;
+    params.push(startDate, endDate);
   }
-});
+
+  query += ` ORDER BY ca.start_date DESC`;
+
+  const result = await client.query(query, params);
+  res.json(result.rows);
+}));
 
 // Create activity manually
-router.post('/', authenticateToken, async (req, res) => {
-  try {
-    const {
+router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const {
+    athleteId,
+    activityType,
+    title,
+    startDate,
+    duration,
+    distance,
+    elevationGain,
+    avgHeartRate,
+    maxHeartRate,
+    avgPace,
+    avgSpeed,
+    calories,
+    notes,
+  } = req.body;
+
+  if (!athleteId || !activityType || !startDate) {
+    throw new BadRequestError('athleteId, activityType, and startDate are required');
+  }
+
+  const activityId = generateId();
+
+  await client.query(
+    `INSERT INTO completed_activities 
+     (id, athlete_id, activity_type, title, start_date, duration, distance, 
+      elevation_gain, avg_heart_rate, max_heart_rate, avg_pace, avg_speed, 
+      calories, source, notes) 
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+    [
+      activityId,
       athleteId,
       activityType,
       title,
       startDate,
       duration,
-      distance,
-      elevationGain,
-      avgHeartRate,
-      maxHeartRate,
-      avgPace,
-      avgSpeed,
-      calories,
-      notes,
-    } = req.body;
-
-    const activityId = generateId();
-
-    await client.query(
-      `INSERT INTO completed_activities 
-       (id, athlete_id, activity_type, title, start_date, duration, distance, 
-        elevation_gain, avg_heart_rate, max_heart_rate, avg_pace, avg_speed, 
-        calories, source, notes) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
-      [
-        activityId,
-        athleteId,
-        activityType,
-        title,
-        startDate,
-        duration,
         distance,
         elevationGain,
         avgHeartRate,
@@ -117,63 +117,59 @@ router.post('/', authenticateToken, async (req, res) => {
     );
 
     res.status(201).json(result.rows[0]);
-  } catch (error: any) {
-    console.error('Create activity error:', error);
-    res.status(500).json({ message: 'Failed to create activity', error: error.message });
-  }
-});
+}));
 
 // Upload GPX file
-router.post('/upload-gpx', authenticateToken, upload.single('gpxFile'), async (req, res) => {
-  try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
-    }
-
-    const { athleteId } = req.body;
-    const gpxContent = req.file.buffer.toString('utf-8');
-    
-    // Parse GPX file
-    const activityData = await parseGPX(gpxContent);
-
-    const activityId = generateId();
-
-    await client.query(
-      `INSERT INTO completed_activities 
-       (id, athlete_id, activity_type, title, start_date, duration, distance, 
-        elevation_gain, avg_heart_rate, max_heart_rate, avg_pace, avg_speed, 
-        calories, source, gpx_data) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
-      [
-        activityId,
-        athleteId,
-        activityData.activityType || 'running',
-        activityData.title || 'Imported Activity',
-        activityData.startDate,
-        activityData.duration,
-        activityData.distance,
-        activityData.elevationGain,
-        activityData.avgHeartRate,
-        activityData.maxHeartRate,
-        activityData.avgPace,
-        activityData.avgSpeed,
-        activityData.calories,
-        'gpx',
-        gpxContent,
-      ]
-    );
-
-    const result = await client.query(
-      'SELECT * FROM completed_activities WHERE id = $1',
-      [activityId]
-    );
-
-    res.status(201).json(result.rows[0]);
-  } catch (error: any) {
-    console.error('Upload GPX error:', error);
-    res.status(500).json({ message: 'Failed to upload GPX', error: error.message });
+router.post('/upload-gpx', authenticateToken, upload.single('gpxFile'), asyncHandler(async (req: Request, res: Response) => {
+  if (!req.file) {
+    throw new BadRequestError('No file uploaded');
   }
-});
+
+  const { athleteId } = req.body;
+  
+  if (!athleteId) {
+    throw new BadRequestError('athleteId is required');
+  }
+
+  const gpxContent = req.file.buffer.toString('utf-8');
+  
+  // Parse GPX file
+  const activityData = await parseGPX(gpxContent);
+
+  const activityId = generateId();
+
+  await client.query(
+    `INSERT INTO completed_activities 
+     (id, athlete_id, activity_type, title, start_date, duration, distance, 
+      elevation_gain, avg_heart_rate, max_heart_rate, avg_pace, avg_speed, 
+      calories, source, gpx_data) 
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15)`,
+    [
+      activityId,
+      athleteId,
+      activityData.activityType || 'running',
+      activityData.title || 'Imported Activity',
+      activityData.startDate,
+      activityData.duration,
+      activityData.distance,
+      activityData.elevationGain,
+      activityData.avgHeartRate,
+      activityData.maxHeartRate,
+      activityData.avgPace,
+      activityData.avgSpeed,
+      activityData.calories,
+      'gpx',
+      gpxContent,
+    ]
+  );
+
+  const result = await client.query(
+    'SELECT * FROM completed_activities WHERE id = $1',
+    [activityId]
+  );
+
+  res.status(201).json(result.rows[0]);
+}));
 
 // Update activity
 router.put('/:activityId', authenticateToken, async (req, res) => {
