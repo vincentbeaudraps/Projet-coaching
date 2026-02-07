@@ -73,7 +73,11 @@ function Header({ showBackButton = false, backTo = '/dashboard', title }: Header
 
         <div className="header-right">
           <NotificationBell />
-          <div className="user-info" onClick={() => navigate('/profile')} style={{ cursor: 'pointer' }}>
+          <div 
+            className="user-info" 
+            onClick={() => navigate(user?.role === 'athlete' ? '/athlete/profile' : '/dashboard')} 
+            style={{ cursor: 'pointer' }}
+          >
             <div className="user-avatar">
               {user?.name?.charAt(0).toUpperCase()}
             </div>

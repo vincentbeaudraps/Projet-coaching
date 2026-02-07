@@ -32,6 +32,12 @@ router.get('/me', authenticateToken, asyncHandler(async (req: Request, res: Resp
 router.get('/', authenticateToken, authorizeRole('coach'), asyncHandler(async (req: Request, res: Response) => {
   const coachId = req.userId!;
   const athletes = await athleteService.getAthletesByCoach(coachId);
+  
+  // Désactiver le cache pour les données dynamiques
+  res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+  res.setHeader('Pragma', 'no-cache');
+  res.setHeader('Expires', '0');
+  
   res.json(athletes);
 }));
 

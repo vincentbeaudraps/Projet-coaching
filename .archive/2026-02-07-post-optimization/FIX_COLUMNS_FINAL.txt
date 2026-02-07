@@ -1,0 +1,49 @@
+╔═══════════════════════════════════════════════════════════════════╗
+║  ✅ FIX FINAL - COLONNES SQL INCORRECTES - RÉSOLU                 ║
+╚═══════════════════════════════════════════════════════════════════╝
+
+🔍 VRAIE CAUSE DE L'ERREUR 500
+-------------------------------
+❌ Column "ca.perceived_effort" does not exist
+❌ Column "ca.training_zone" does not exist
+
+📊 STRUCTURE RÉELLE DE completed_activities
+--------------------------------------------
+✅ feeling_rating (INTEGER 1-10)
+✅ difficulty_rating (INTEGER 1-10)
+❌ PAS de: perceived_effort, training_zone
+
+🛠️ CORRECTIONS APPLIQUÉES (2 modifications)
+--------------------------------------------
+1️⃣ Requête "Activités récentes"
+   ❌ ca.perceived_effort → ✅ ca.difficulty_rating + ca.feeling_rating
+
+2️⃣ Requête "Distribution zones"
+   ❌ Query SQL complète → ✅ Retour tableau vide { rows: [] }
+   (Fonctionnalité pas encore implémentée)
+
+📁 Fichier: backend/src/routes/athletes.ts
+   Route: GET /:athleteId/detailed-stats
+
+✅ ÉTAT BACKEND
+---------------
+✅ Redémarré 2 fois (nodemon)
+✅ Dernière ligne: "Server running on port 3000"
+✅ Aucune nouvelle erreur SQL
+
+🧪 TEST MAINTENANT
+------------------
+→ RAFRAÎCHIR LA PAGE FRONTEND (/athletes/:id)
+→ L'erreur 500 devrait avoir disparu
+→ La page devrait se charger (même si vide)
+
+💡 NOTE
+-------
+- Zone distribution: retourne [] car training_zone n'existe pas
+- perceived_effort: remplacé par difficulty_rating/feeling_rating
+- Les anomalies continuent de fonctionner (pas de dépendance)
+
+════════════════════════════════════════════════════════════════════
+DATE: 06/02/2026 23:55
+STATUS: ✅ CORRECTIONS APPLIQUÉES - TESTER PAGE FRONTEND
+════════════════════════════════════════════════════════════════════

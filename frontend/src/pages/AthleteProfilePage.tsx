@@ -101,7 +101,7 @@ function AthleteProfilePage() {
   };
 
   const handleDelete = async () => {
-    await deleteAthlete(undefined);
+    await deleteAthlete();
   };
 
   const handleMetricsUpdate = () => {

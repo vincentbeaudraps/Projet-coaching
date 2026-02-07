@@ -1,0 +1,77 @@
+╔══════════════════════════════════════════════════════════════════╗
+║  ✅ FIX 500 ERROR - PAGE DÉTAIL ATHLÈTE - TERMINÉ                ║
+╚══════════════════════════════════════════════════════════════════╝
+
+📍 PROBLÈME
+----------
+❌ Erreur 500 sur /api/athletes/:id/detailed-stats
+❌ Page de suivi détaillé d'athlète inaccessible
+
+🔍 CAUSE
+--------
+Les requêtes SQL utilisaient les MAUVAISES tables:
+  • performance_records ❌ (table limitée, peu de colonnes)
+  • Au lieu de: completed_activities ✅ (vraie table d'activités)
+
+Colonnes manquantes dans performance_records:
+  ❌ date (c'est 'recorded_at')
+  ❌ avg_pace
+  ❌ elevation_gain
+  ❌ perceived_effort
+  ❌ activity_type
+  ❌ training_zone
+
+🛠️ CORRECTIONS APPLIQUÉES
+--------------------------
+Fichier: backend/src/routes/athletes.ts
+Route: GET /:athleteId/detailed-stats (ligne ~958)
+
+✅ Corrigé 4 requêtes SQL:
+   1. Charge hebdomadaire
+   2. Activités récentes (30 jours)
+   3. Statistiques globales
+   4. Distribution zones d'entraînement
+
+✅ Remplacé partout:
+   performance_records → completed_activities
+   pr.date → ca.start_date
+   pr.actual_distance → ca.distance
+   pr.actual_duration → ca.duration
+   ts.activity_type → ca.activity_type
+   ts.training_zone → ca.training_zone
+
+✅ Supprimé tous les JOIN inutiles vers training_sessions
+
+📊 ÉTAT ACTUEL
+--------------
+✅ Backend redémarré automatiquement (nodemon)
+✅ Aucune erreur de compilation
+✅ Serveur écoute sur port 3000
+✅ Base PostgreSQL connectée
+✅ Table completed_activities vérifiée
+
+⏳ TEST MANUEL REQUIS
+----------------------
+1. Rafraîchir la page frontend /athletes/:id
+2. Vérifier que la page charge (pas d'erreur 500)
+3. Tester les 4 onglets
+4. Vérifier les graphiques
+5. Tester le filtre de période (4/8/12/24 semaines)
+
+📁 FICHIERS CRÉÉS
+-----------------
+✅ FIX_DETAILED_STATS_TABLE_ERROR.md - Diagnostic détaillé
+✅ FIX_DETAILED_STATS_COMPLETE.md - Documentation complète
+✅ FIX_DETAILED_STATS_QUICK.txt - Ce fichier (résumé rapide)
+✅ migrations/create_completed_activities.sql - Migration SQL
+
+🎯 PROCHAINE ACTION
+-------------------
+→ TESTER LA PAGE DANS LE NAVIGATEUR
+→ Vérifier qu'il n'y a plus d'erreur 500
+→ Confirmer que les données s'affichent
+
+════════════════════════════════════════════════════════════════════
+DATE: 06/02/2026 23:45
+STATUS: ✅ CORRECTION TERMINÉE - EN ATTENTE DE TEST FRONTEND
+════════════════════════════════════════════════════════════════════

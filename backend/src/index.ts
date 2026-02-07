@@ -48,13 +48,18 @@ app.use(helmet({
   crossOriginEmbedderPolicy: false,
 }));
 
-// Rate Limiting
+// Rate Limiting - Plus permissif en développement
 const limiter = rateLimit({
   windowMs: 15 * 60 * 1000, // 15 minutes
-  max: 100, // 100 requests per window
+  max: 1000, // 1000 requests per window (augmenté pour dev)
   message: 'Trop de requêtes depuis cette IP, veuillez réessayer plus tard.',
   standardHeaders: true,
   legacyHeaders: false,
+  skip: (req) => {
+    // Skip rate limiting for localhost in development
+    return process.env.NODE_ENV !== 'production' && 
+           (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === 'localhost');
+  }
 });
 
 // Apply rate limiter to API routes
@@ -63,8 +68,13 @@ app.use('/api/', limiter);
 // Stricter rate limit for auth routes
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 10, // 10 login attempts per 15 minutes
+  max: 50, // 50 login attempts per 15 minutes (augmenté pour dev)
   message: 'Trop de tentatives de connexion, veuillez réessayer dans 15 minutes.',
+  skip: (req) => {
+    // Skip rate limiting for localhost in development
+    return process.env.NODE_ENV !== 'production' && 
+           (req.ip === '127.0.0.1' || req.ip === '::1' || req.ip === 'localhost');
+  }
 });
 
 // CORS - Configuration explicite
@@ -76,6 +86,17 @@ app.use(cors({
   exposedHeaders: ['Content-Range', 'X-Content-Range'],
   maxAge: 86400 // 24 hours
 }));
+
+// Désactiver le cache en développement
+if (process.env.NODE_ENV !== 'production') {
+  app.use((req, res, next) => {
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.setHeader('Pragma', 'no-cache');
+    res.setHeader('Expires', '0');
+    next();
+  });
+}
+
 app.use(express.json({ limit: '10mb' })); // Limit payload size
 
 // Routes

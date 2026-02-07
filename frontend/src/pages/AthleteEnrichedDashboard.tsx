@@ -2,12 +2,33 @@
 import { useState, useEffect } from 'react';
 import { useAuthStore } from '../store/authStore';
 import { athletesService } from '../services/api';
-import { showSuccess } from '../utils/toast';
+import { showSuccess, showError } from '../utils/toast';
 import { useApi, useApiSubmit } from '../hooks/useApi';
 import Header from '../components/Header';
 import '../styles/AthleteEnrichedDashboard.css';
 
-// Removed unused AthleteProfile interface - using inline type in useApi
+interface AthleteProfile {
+  id: string;
+  user_id: string;
+  age?: number;
+  weight?: number;
+  height?: number;
+  vma?: number;
+  max_heart_rate?: number;
+  resting_heart_rate?: number;
+  birth_date?: string;
+  gender?: string;
+  profile_photo_url?: string;
+  city?: string;
+  running_experience_years?: number;
+  preferred_distances?: string;
+  injury_history?: string;
+  medical_notes?: string;
+  total_distance_km?: number;
+  total_time_hours?: number;
+  total_sessions?: number;
+}
+
 interface PersonalRecord {
   id: string;
   distance_type: string;

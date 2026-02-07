@@ -109,7 +109,7 @@ function App() {
           path="/profile"
           element={
             <ProtectedRoute>
-              <AthleteProfilePage />
+              {user?.role === 'athlete' ? <AthleteProfilePage /> : <Navigate to="/dashboard" />}
             </ProtectedRoute>
           }
         />
