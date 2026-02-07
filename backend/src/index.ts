@@ -2,11 +2,13 @@ import express, { Express } from 'express';
 import cors from 'cors';
 import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
+import cookieParser from 'cookie-parser';
 import dotenv from 'dotenv';
 import { connectDB } from './database/connection.js';
 import { initializeDatabase } from './database/init.js';
 import { errorMiddleware } from './middleware/errorHandler.js';
 import { sanitizeRequest, additionalSecurityHeaders } from './middleware/security.js';
+import { csrfProtection, setCsrfCookie } from './middleware/csrf.js';
 import authRoutes from './routes/auth.js';
 import athletesRoutes from './routes/athletes.js';
 import sessionsRoutes from './routes/sessions.js';
@@ -19,15 +21,16 @@ import notificationsRoutes from './routes/notifications.js';
 import feedbackRoutes from './routes/feedback.js';
 import goalsRoutes from './routes/goals.js';
 import trainingPlansRoutes from './routes/training-plans.js';
+import logger, { logError, logInfo } from './utils/logger.js';
 
 // Global error handlers
 process.on('uncaughtException', (error) => {
-  console.error('Uncaught Exception:', error);
+  logError('Uncaught Exception:', error);
   process.exit(1);
 });
 
 process.on('unhandledRejection', (reason, promise) => {
-  console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  logError('Unhandled Rejection:', { reason, promise });
   process.exit(1);
 });
 
@@ -147,6 +150,21 @@ app.use(sanitizeRequest);
 
 app.use(express.json({ limit: '10mb' })); // Limit payload size
 
+// Cookie parser (required for CSRF)
+app.use(cookieParser());
+
+// CSRF Protection - Set cookie on all requests
+app.use(setCsrfCookie);
+
+// Apply CSRF protection to state-changing routes
+// GET, HEAD, OPTIONS are automatically skipped
+app.use(csrfProtection);
+
+// CSRF token endpoint (for frontend to get the token)
+app.get('/api/csrf-token', (req, res) => {
+  res.json({ csrfToken: req.cookies['csrf-token'] });
+});
+
 // Routes
 app.use('/api/auth', authLimiter, authRoutes);
 app.use('/api/athletes', athletesRoutes);
@@ -179,19 +197,20 @@ async function startServer() {
     // Try to connect to database
     try {
       await connectDB();
-      console.log('Attempting to initialize database...');
+      logInfo('Attempting to initialize database...');
       await initializeDatabase();
     } catch (dbError) {
-      console.warn('Database connection warning:', dbError);
-      console.log('Server starting without database. Please ensure PostgreSQL is running.');
+      logError('Database connection warning:', dbError);
+      logInfo('Server starting without database. Please ensure PostgreSQL is running.');
     }
     
     const PORT = process.env.PORT || 3000;
     app.listen(PORT, () => {
-      console.log(`Server running on port ${PORT}`);
+      logInfo(`Server running on port ${PORT}`);
+      logInfo(`Environment: ${process.env.NODE_ENV || 'development'}`);
     });
   } catch (error) {
-    console.error('Failed to start server:', error);
+    logError('Failed to start server:', error);
     process.exit(1);
   }
 }

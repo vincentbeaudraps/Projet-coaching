@@ -8,6 +8,7 @@ import { athleteService } from '../services/athleteService.js';
 import { trainingLoadService } from '../services/trainingLoadService.js';
 import { encryptSensitiveData, decryptSensitiveData } from '../utils/encryption.js';
 import { sanitizePlainText, sanitizeInput } from '../utils/sanitization.js';
+import { createAthleteSchema, athleteMetricsSchema, validateRequest } from '../utils/validation.js';
 
 const router: Router = express.Router();
 
@@ -209,6 +210,10 @@ router.put('/:athleteId/metrics', authenticateToken, asyncHandler(async (req: Re
   const { athleteId } = req.params;
   const userId = req.userId!;
   const userRole = req.userRole!;
+  
+  // Validate input with Zod
+  const validatedData = validateRequest(athleteMetricsSchema, req.body);
+  
   const {
     max_heart_rate,
     vma,
