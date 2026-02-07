@@ -172,90 +172,80 @@ router.post('/upload-gpx', authenticateToken, upload.single('gpxFile'), asyncHan
 }));
 
 // Update activity
-router.put('/:activityId', authenticateToken, async (req, res) => {
-  try {
-    const { activityId } = req.params;
-    const { 
-      title, 
-      activity_type,
-      duration,
-      distance,
-      difficulty_rating, 
-      feeling_rating, 
-      athlete_notes 
-    } = req.body;
+router.put('/:activityId', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const { activityId } = req.params;
+  const { 
+    title, 
+    activity_type,
+    duration,
+    distance,
+    difficulty_rating, 
+    feeling_rating, 
+    athlete_notes 
+  } = req.body;
 
-    const updates: string[] = [];
-    const values: any[] = [];
-    let paramIndex = 1;
+  const updates: string[] = [];
+  const values: any[] = [];
+  let paramIndex = 1;
 
-    if (title !== undefined) {
-      updates.push(`title = $${paramIndex++}`);
-      values.push(title);
-    }
-    if (activity_type !== undefined) {
-      updates.push(`activity_type = $${paramIndex++}`);
-      values.push(activity_type);
-    }
-    if (duration !== undefined) {
-      updates.push(`duration = $${paramIndex++}`);
-      values.push(duration);
-    }
-    if (distance !== undefined) {
-      updates.push(`distance = $${paramIndex++}`);
-      values.push(distance);
-    }
-    if (difficulty_rating !== undefined) {
-      updates.push(`difficulty_rating = $${paramIndex++}`);
-      values.push(difficulty_rating);
-    }
-    if (feeling_rating !== undefined) {
-      updates.push(`feeling_rating = $${paramIndex++}`);
-      values.push(feeling_rating);
-    }
-    if (athlete_notes !== undefined) {
-      updates.push(`athlete_notes = $${paramIndex++}`);
-      values.push(athlete_notes);
-    }
-
-    if (updates.length === 0) {
-      return res.status(400).json({ message: 'No fields to update' });
-    }
-
-    updates.push(`updated_at = NOW()`);
-    values.push(activityId);
-
-    await client.query(
-      `UPDATE completed_activities 
-       SET ${updates.join(', ')} 
-       WHERE id = $${paramIndex}`,
-      values
-    );
-
-    const result = await client.query(
-      'SELECT * FROM completed_activities WHERE id = $1',
-      [activityId]
-    );
-
-    res.json(result.rows[0]);
-  } catch (error: any) {
-    console.error('Update activity error:', error);
-    res.status(500).json({ message: 'Failed to update activity', error: error.message });
+  if (title !== undefined) {
+    updates.push(`title = $${paramIndex++}`);
+    values.push(title);
   }
-});
+  if (activity_type !== undefined) {
+    updates.push(`activity_type = $${paramIndex++}`);
+    values.push(activity_type);
+  }
+  if (duration !== undefined) {
+    updates.push(`duration = $${paramIndex++}`);
+    values.push(duration);
+  }
+  if (distance !== undefined) {
+    updates.push(`distance = $${paramIndex++}`);
+    values.push(distance);
+  }
+  if (difficulty_rating !== undefined) {
+    updates.push(`difficulty_rating = $${paramIndex++}`);
+    values.push(difficulty_rating);
+  }
+  if (feeling_rating !== undefined) {
+    updates.push(`feeling_rating = $${paramIndex++}`);
+    values.push(feeling_rating);
+  }
+  if (athlete_notes !== undefined) {
+    updates.push(`athlete_notes = $${paramIndex++}`);
+    values.push(athlete_notes);
+  }
+
+  if (updates.length === 0) {
+    throw new BadRequestError('No fields to update');
+  }
+
+  updates.push(`updated_at = NOW()`);
+  values.push(activityId);
+
+  await client.query(
+    `UPDATE completed_activities 
+     SET ${updates.join(', ')} 
+     WHERE id = $${paramIndex}`,
+    values
+  );
+
+  const result = await client.query(
+    'SELECT * FROM completed_activities WHERE id = $1',
+    [activityId]
+  );
+
+  res.json(result.rows[0]);
+}));
 
 // Delete activity
-router.delete('/:activityId', authenticateToken, async (req, res) => {
-  try {
-    const { activityId } = req.params;
+router.delete('/:activityId', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const { activityId } = req.params;
 
-    await client.query('DELETE FROM completed_activities WHERE id = $1', [activityId]);
+  await client.query('DELETE FROM completed_activities WHERE id = $1', [activityId]);
 
-    res.json({ message: 'Activity deleted' });
-  } catch (error) {
-    console.error('Delete activity error:', error);
-    res.status(500).json({ message: 'Failed to delete activity' });
-  }
-});
+  res.json({ message: 'Activity deleted' });
+}));
 
 export default router;
