@@ -96,6 +96,15 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() });
 });
 
+// 404 handler - doit être après toutes les routes
+app.use((req, res) => {
+  res.status(404).json({ message: 'Route not found' });
+});
+
+// Error handling middleware - doit être en dernier
+import { errorMiddleware } from './middleware/errorHandler.js';
+app.use(errorMiddleware);
+
 async function startServer() {
   try {
     // Try to connect to database

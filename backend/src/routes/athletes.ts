@@ -1,55 +1,39 @@
-import express, { Router } from 'express';
+import express, { Router, Request, Response } from 'express';
 import client from '../database/connection.js';
 import { authenticateToken, authorizeRole } from '../middleware/auth.js';
 import bcrypt from 'bcryptjs';
 import { generateId } from '../utils/id.js';
+import { asyncHandler, NotFoundError, BadRequestError, ConflictError } from '../middleware/errorHandler.js';
+import { athleteService } from '../services/athleteService.js';
+import { trainingLoadService } from '../services/trainingLoadService.js';
 
 const router: Router = express.Router();
 
 // Get current athlete profile (for authenticated athlete)
-router.get('/me', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.userId;
-    
-    const result = await client.query(
-      `SELECT a.*, u.email as user_email, u.name as user_name 
-       FROM athletes a 
-       JOIN users u ON a.user_id = u.id 
-       WHERE a.user_id = $1`,
-      [userId]
-    );
+router.get('/me', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.userId!;
+  
+  const result = await client.query(
+    `SELECT a.*, u.email as user_email, u.name as user_name 
+     FROM athletes a 
+     JOIN users u ON a.user_id = u.id 
+     WHERE a.user_id = $1`,
+    [userId]
+  );
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Athlete profile not found' });
-    }
-
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Fetch athlete profile error:', error);
-    res.status(500).json({ message: 'Failed to fetch athlete profile' });
+  if (result.rows.length === 0) {
+    throw new NotFoundError('Athlete profile not found');
   }
-});
+
+  res.json(result.rows[0]);
+}));
 
 // Get all athletes for a coach
-router.get('/', authenticateToken, authorizeRole('coach'), async (req, res) => {
-  try {
-    const coachId = req.userId;
-    
-    const result = await client.query(
-      `SELECT a.*, u.email as user_email, u.name as user_name 
-       FROM athletes a 
-       JOIN users u ON a.user_id = u.id 
-       WHERE a.coach_id = $1
-       ORDER BY a.created_at DESC`,
-      [coachId]
-    );
-
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Fetch athletes error:', error);
-    res.status(500).json({ message: 'Failed to fetch athletes' });
-  }
-});
+router.get('/', authenticateToken, authorizeRole('coach'), asyncHandler(async (req: Request, res: Response) => {
+  const coachId = req.userId!;
+  const athletes = await athleteService.getAthletesByCoach(coachId);
+  res.json(athletes);
+}));
 
 // Add athlete for coach
 router.post('/', authenticateToken, authorizeRole('coach'), async (req, res) => {
