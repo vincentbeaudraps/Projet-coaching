@@ -1,7 +1,7 @@
 // filepath: frontend/src/pages/AthleteRaceHistory.tsx
 import { useState, useEffect } from 'react';
 import { athletesService } from '../services/api';
-import { showError } from '../utils/toast';
+import { useApi } from '../hooks/useApi';
 import Header from '../components/Header';
 import '../styles/AthleteRaceHistory.css';
 
@@ -18,35 +18,22 @@ interface PersonalRecord {
 }
 
 export default function AthleteRaceHistory() {
-  const [records, setRecords] = useState<PersonalRecord[]>([]);
   const [filteredRecords, setFilteredRecords] = useState<PersonalRecord[]>([]);
-  const [loading, setLoading] = useState(true);
   const [selectedDistance, setSelectedDistance] = useState<string>('all');
   const [selectedYear, setSelectedYear] = useState<string>('all');
   const [sortBy, setSortBy] = useState<'date' | 'vdot' | 'pace'>('date');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
-  useEffect(() => {
-    loadRecords();
-  }, []);
+  // Load records using useApi
+  const { data: recordsData, loading } = useApi<PersonalRecord[]>(
+    () => athletesService.getMyRecords().then(res => res.data || []),
+    []
+  );
+  const records = recordsData || [];
 
   useEffect(() => {
     filterAndSortRecords();
   }, [records, selectedDistance, selectedYear, sortBy, sortOrder]);
-
-  const loadRecords = async () => {
-    setLoading(true);
-    try {
-      const res = await athletesService.getMyRecords();
-      setRecords(res.data || []);
-    } catch (error) {
-      console.error('Error loading records:', error);
-      showError('Erreur lors du chargement de l\'historique', error as Error);
-      setRecords([]);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const calculateVDOT = (timeSeconds: number, distanceKm: number): number => {
     const distanceMeters = distanceKm * 1000;
