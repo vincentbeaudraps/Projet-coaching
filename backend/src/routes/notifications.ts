@@ -119,18 +119,13 @@ export async function createNotification(
   link?: string,
   relatedId?: string
 ) {
-  try {
-    const id = generateId();
-    await client.query(
-      `INSERT INTO notifications (id, user_id, type, title, message, link, related_id)
-       VALUES ($1, $2, $3, $4, $5, $6, $7)`,
-      [id, userId, type, title, message, link || null, relatedId || null]
-    );
-    return { id, success: true };
-  } catch (error) {
-    console.error('Error creating notification:', error);
-    return { success: false, error };
-  }
+  const id = generateId();
+  await client.query(
+    `INSERT INTO notifications (id, user_id, type, title, message, link, related_id)
+     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+    [id, userId, type, title, message, link || null, relatedId || null]
+  );
+  return { id, success: true };
 }
 
 export default router;
