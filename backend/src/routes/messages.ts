@@ -4,17 +4,15 @@ import { authenticateToken } from '../middleware/auth.js';
 import { createNotification } from './notifications.js';
 import emailService from '../utils/emailService.js';
 import { asyncHandler, BadRequestError } from '../middleware/errorHandler.js';
+import { sendMessageSchema, validateRequest } from '../utils/validation.js';
 
 const router: Router = express.Router();
 
 // Send message
 router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  const { receiverId, content } = req.body;
+  const validatedData = validateRequest(sendMessageSchema, req.body);
+  const { receiverId, content } = validatedData;
   const senderId = req.userId!;
-
-  if (!receiverId || !content) {
-    throw new BadRequestError('Receiver ID and content are required');
-  }
 
   const result = await client.query(
     `INSERT INTO messages (sender_id, receiver_id, content) 

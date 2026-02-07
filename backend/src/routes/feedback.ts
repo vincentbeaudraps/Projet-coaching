@@ -5,6 +5,7 @@ import { createNotification } from './notifications.js';
 import { generateId } from '../utils/id.js';
 import { asyncHandler, NotFoundError, BadRequestError, ForbiddenError } from '../middleware/errorHandler.js';
 import { athleteService } from '../services/athleteService.js';
+import { createFeedbackSchema, updateFeedbackSchema, validateRequest } from '../utils/validation.js';
 
 const router = Router();
 
@@ -14,23 +15,11 @@ const router = Router();
  */
 router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const athleteId = req.userId!;
-
+  const validatedData = validateRequest(createFeedbackSchema, req.body);
   const {
     sessionId, feelingRating, difficultyRating, fatigueRating,
     athleteNotes, completedDistance, completedDuration, avgHeartRate, avgPace
-  } = req.body;
-
-  if (!sessionId) throw new BadRequestError('Session ID is required');
-
-  // Validate ratings
-  const validateRating = (rating: number | undefined, name: string) => {
-    if (rating && (rating < 1 || rating > 5)) {
-      throw new BadRequestError(`${name} must be between 1 and 5`);
-    }
-  };
-  validateRating(feelingRating, 'Feeling rating');
-  validateRating(difficultyRating, 'Difficulty rating');
-  validateRating(fatigueRating, 'Fatigue rating');
+  } = validatedData;
 
   // Verify session belongs to athlete
   const sessionResult = await client.query(

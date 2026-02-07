@@ -2,16 +2,14 @@ import express, { Router, Request, Response } from 'express';
 import client from '../database/connection.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { asyncHandler, BadRequestError } from '../middleware/errorHandler.js';
+import { recordPerformanceSchema, validateRequest } from '../utils/validation.js';
 
 const router: Router = express.Router();
 
 // Record performance
 router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
-  const { athleteId, sessionId, actualDistance, actualDuration, avgHeartRate, maxHeartRate, notes } = req.body;
-
-  if (!athleteId || !sessionId) {
-    throw new BadRequestError('athleteId and sessionId are required');
-  }
+  const validatedData = validateRequest(recordPerformanceSchema, req.body);
+  const { athleteId, sessionId, actualDistance, actualDuration, avgHeartRate, maxHeartRate, notes } = validatedData;
 
   const result = await client.query(
     `INSERT INTO performance_records 

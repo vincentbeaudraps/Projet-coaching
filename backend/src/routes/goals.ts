@@ -5,6 +5,7 @@ import { createNotification } from './notifications.js';
 import { generateId } from '../utils/id.js';
 import { asyncHandler, NotFoundError, BadRequestError, ForbiddenError } from '../middleware/errorHandler.js';
 import { athleteService } from '../services/athleteService.js';
+import { createGoalSchema, updateGoalSchema, validateRequest } from '../utils/validation.js';
 
 const router = Router();
 
@@ -14,15 +15,11 @@ const router = Router();
  */
 router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const coachId = req.userId!;
-  
+  const validatedData = validateRequest(createGoalSchema, req.body);
   const {
     athleteId, title, description, goalType, targetValue, targetDate,
     priority, raceName, raceDistance, raceLocation, notes
-  } = req.body;
-
-  if (!athleteId || !title || !goalType) {
-    throw new BadRequestError('Athlete ID, title, and goal type are required');
-  }
+  } = validatedData;
 
   // Verify coach has access to athlete
   await athleteService.verifyCoachOwnership(athleteId, coachId);

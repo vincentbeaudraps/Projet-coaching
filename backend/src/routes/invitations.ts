@@ -3,6 +3,7 @@ import client from '../database/connection.js';
 import { authenticateToken, authorizeRole } from '../middleware/auth.js';
 import { generateId } from '../utils/id.js';
 import { asyncHandler, NotFoundError, BadRequestError } from '../middleware/errorHandler.js';
+import { validateInvitationSchema, useInvitationSchema, validateRequest } from '../utils/validation.js';
 
 const router: Router = express.Router();
 
@@ -51,11 +52,8 @@ router.get('/my-codes', authenticateToken, authorizeRole('coach'), asyncHandler(
 
 // Validate invitation code (Public - used during registration)
 router.post('/validate', asyncHandler(async (req: Request, res: Response) => {
-  const { code } = req.body;
-
-  if (!code) {
-    throw new BadRequestError('Code d\'invitation requis');
-  }
+  const validatedData = validateRequest(validateInvitationSchema, req.body);
+  const { code } = validatedData;
 
   const result = await client.query(
     `SELECT ic.*, u.name as coach_name, u.email as coach_email
@@ -89,7 +87,8 @@ router.post('/validate', asyncHandler(async (req: Request, res: Response) => {
 
 // Mark invitation code as used (called during registration)
 router.post('/use', asyncHandler(async (req: Request, res: Response) => {
-  const { code, userId } = req.body;
+  const validatedData = validateRequest(useInvitationSchema, req.body);
+  const { code, userId } = validatedData;
 
   await client.query(
     `UPDATE invitation_codes 

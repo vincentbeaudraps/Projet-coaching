@@ -5,6 +5,7 @@ import { createNotification } from './notifications.js';
 import { generateId } from '../utils/id.js';
 import { asyncHandler, NotFoundError, BadRequestError, ForbiddenError } from '../middleware/errorHandler.js';
 import { athleteService } from '../services/athleteService.js';
+import { createTrainingPlanSchema, updateTrainingPlanSchema, validateRequest } from '../utils/validation.js';
 
 const router = Router();
 
@@ -14,15 +15,11 @@ const router = Router();
  */
 router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const coachId = req.userId!;
-  
+  const validatedData = validateRequest(createTrainingPlanSchema, req.body);
   const {
     athleteId, goalId, name, description, startDate, endDate,
     planType, weeklyVolumeProgression, notes
-  } = req.body;
-
-  if (!athleteId || !name || !startDate || !endDate) {
-    throw new BadRequestError('Athlete ID, name, start date, and end date are required');
-  }
+  } = validatedData;
 
   // Verify coach has access to athlete
   await athleteService.verifyCoachOwnership(athleteId, coachId);

@@ -7,18 +7,16 @@ import { createNotification } from './notifications.js';
 import emailService from '../utils/emailService.js';
 import { asyncHandler, NotFoundError, BadRequestError } from '../middleware/errorHandler.js';
 import { athleteService } from '../services/athleteService.js';
+import { createTrainingSessionSchema, updateTrainingSessionSchema, validateRequest } from '../utils/validation.js';
 
 const router: Router = express.Router();
 
 // Create training session
 router.post('/', authenticateToken, authorizeRole('coach'), asyncHandler(async (req: Request, res: Response) => {
-  const { athleteId, title, description, type, distance, duration, intensity, startDate, blocks, notes } = req.body;
+  const validatedData = validateRequest(createTrainingSessionSchema, req.body);
+  const { athleteId, title, description, type, distance, duration, intensity, startDate, blocks, notes } = validatedData;
   const coachId = req.userId!;
   const sessionId = generateId();
-
-  if (!athleteId || !title || !startDate) {
-    throw new BadRequestError('AthleteId, title, and startDate are required');
-  }
 
   // Verify coach owns this athlete
   await athleteService.verifyCoachOwnership(athleteId, coachId);
@@ -273,7 +271,8 @@ router.get('/', authenticateToken, authorizeRole('coach'), asyncHandler(async (r
 // Update session
 router.put('/:sessionId', authenticateToken, authorizeRole('coach'), asyncHandler(async (req: Request, res: Response) => {
   const { sessionId } = req.params;
-  const { title, description, type, distance, duration, intensity, startDate, blocks, notes } = req.body;
+  const validatedData = validateRequest(updateTrainingSessionSchema, req.body);
+  const { title, description, type, distance, duration, intensity, startDate, blocks, notes } = validatedData;
 
   await client.query(
     `UPDATE training_sessions 
@@ -298,6 +297,7 @@ router.put('/:sessionId', authenticateToken, authorizeRole('coach'), asyncHandle
     const athleteUserId = athleteResult.rows[0].user_id;
     const athleteName = athleteResult.rows[0].athlete_name;
     const athleteEmail = athleteResult.rows[0].athlete_email;
+    const sessionTitle = result.rows[0].title;
     
     // Get coach name
     const coachResult = await client.query(
@@ -311,7 +311,7 @@ router.put('/:sessionId', authenticateToken, authorizeRole('coach'), asyncHandle
       athleteUserId,
       'session_modified',
       '✏️ Séance modifiée',
-      `Ton coach a modifié la séance : ${title}`,
+      `Ton coach a modifié la séance : ${sessionTitle}`,
       `/dashboard`,
       sessionId
     );
@@ -320,7 +320,7 @@ router.put('/:sessionId', authenticateToken, authorizeRole('coach'), asyncHandle
     await emailService.sendSessionModifiedEmail(
       athleteEmail,
       athleteName,
-      title,
+      sessionTitle,
       coachName
     );
   }

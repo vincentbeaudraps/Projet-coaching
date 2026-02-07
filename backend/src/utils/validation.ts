@@ -55,6 +55,31 @@ export const createSessionSchema = z.object({
   notes: z.string().max(1000).optional(),
 });
 
+export const createTrainingSessionSchema = z.object({
+  athleteId: z.string().uuid('ID athlète invalide'),
+  title: z.string().min(1, 'Titre requis').max(200, 'Titre trop long'),
+  description: z.string().max(1000, 'Description trop longue').optional(),
+  type: z.string().max(50, 'Type trop long').optional(),
+  distance: z.number().min(0).max(500).optional(),
+  duration: z.number().min(0).max(1000).optional(),
+  intensity: z.string().max(50).optional(),
+  startDate: z.string().datetime('Date invalide'),
+  blocks: z.string().max(10000).optional(), // JSON string
+  notes: z.string().max(2000).optional(),
+});
+
+export const updateTrainingSessionSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  description: z.string().max(1000).optional(),
+  type: z.string().max(50).optional(),
+  distance: z.number().min(0).max(500).optional(),
+  duration: z.number().min(0).max(1000).optional(),
+  intensity: z.string().max(50).optional(),
+  startDate: z.string().datetime().optional(),
+  blocks: z.string().max(10000).optional(),
+  notes: z.string().max(2000).optional(),
+});
+
 // Activity schemas
 export const createActivitySchema = z.object({
   athlete_id: z.string().uuid(),
@@ -71,6 +96,35 @@ export const createActivitySchema = z.object({
   route_name: z.string().max(100).optional(),
 });
 
+export const createCompletedActivitySchema = z.object({
+  athleteId: z.string().uuid('ID athlète invalide'),
+  activityType: z.string().min(1, 'Type activité requis').max(50),
+  title: z.string().max(200).optional(),
+  startDate: z.string().datetime('Date invalide'),
+  duration: z.number().min(0).max(2000).optional(),
+  distance: z.number().min(0).max(500).optional(),
+  elevationGain: z.number().min(0).max(20000).optional(),
+  avgHeartRate: z.number().int().min(30).max(250).optional(),
+  maxHeartRate: z.number().int().min(30).max(250).optional(),
+  avgPace: z.string().max(20).optional(),
+  avgSpeed: z.number().min(0).max(100).optional(),
+  calories: z.number().int().min(0).max(20000).optional(),
+  notes: z.string().max(2000).optional(),
+});
+
+export const updateCompletedActivitySchema = z.object({
+  title: z.string().max(200).optional(),
+  duration: z.number().min(0).max(2000).optional(),
+  distance: z.number().min(0).max(500).optional(),
+  elevationGain: z.number().min(0).max(20000).optional(),
+  avgHeartRate: z.number().int().min(30).max(250).optional(),
+  maxHeartRate: z.number().int().min(30).max(250).optional(),
+  avgPace: z.string().max(20).optional(),
+  avgSpeed: z.number().min(0).max(100).optional(),
+  calories: z.number().int().min(0).max(20000).optional(),
+  notes: z.string().max(2000).optional(),
+});
+
 // Message schemas
 export const sendMessageSchema = z.object({
   receiverId: z.string().uuid('ID destinataire invalide'),
@@ -79,11 +133,13 @@ export const sendMessageSchema = z.object({
 
 // Performance schemas
 export const recordPerformanceSchema = z.object({
-  athlete_id: z.string().uuid(),
-  metric_type: z.enum(['vo2max', 'lactate_threshold', 'vma', 'weight', 'resting_hr']),
-  value: z.number().min(0),
-  recorded_date: z.string().datetime(),
-  notes: z.string().max(500).optional(),
+  athleteId: z.string().uuid('ID athlète invalide'),
+  sessionId: z.string().uuid('ID séance invalide'),
+  actualDistance: z.number().min(0).max(500).optional(),
+  actualDuration: z.number().min(0).max(2000).optional(),
+  avgHeartRate: z.number().int().min(30).max(250).optional(),
+  maxHeartRate: z.number().int().min(30).max(250).optional(),
+  notes: z.string().max(2000).optional(),
 });
 
 // Personal record schemas
@@ -115,15 +171,86 @@ export const createVolumeSchema = z.object({
 
 // Invitation schemas
 export const validateInvitationSchema = z.object({
-  code: z.string().length(8, 'Code invalide'),
+  code: z.string().min(1, 'Code requis').max(20, 'Code invalide'),
+});
+
+export const useInvitationSchema = z.object({
+  code: z.string().min(1, 'Code requis').max(20, 'Code invalide'),
+  userId: z.string().uuid('ID utilisateur invalide'),
 });
 
 // Feedback schemas
 export const createFeedbackSchema = z.object({
-  session_id: z.string().uuid(),
-  feeling: z.enum(['Excellent', 'Bien', 'Moyen', 'Difficile', 'Très difficile']),
-  comments: z.string().max(1000).optional(),
-  difficulty: z.number().int().min(1).max(10),
+  sessionId: z.string().uuid('ID séance invalide'),
+  feelingRating: z.number().int().min(1).max(5).optional(),
+  difficultyRating: z.number().int().min(1).max(5).optional(),
+  fatigueRating: z.number().int().min(1).max(5).optional(),
+  athleteNotes: z.string().max(2000).optional(),
+  completedDistance: z.number().min(0).max(500).optional(),
+  completedDuration: z.number().min(0).max(2000).optional(),
+  avgHeartRate: z.number().int().min(30).max(250).optional(),
+  avgPace: z.string().max(20).optional(),
+});
+
+export const updateFeedbackSchema = z.object({
+  feelingRating: z.number().int().min(1).max(5).optional(),
+  difficultyRating: z.number().int().min(1).max(5).optional(),
+  fatigueRating: z.number().int().min(1).max(5).optional(),
+  athleteNotes: z.string().max(2000).optional(),
+  completedDistance: z.number().min(0).max(500).optional(),
+  completedDuration: z.number().min(0).max(2000).optional(),
+  avgHeartRate: z.number().int().min(30).max(250).optional(),
+  avgPace: z.string().max(20).optional(),
+});
+
+// Goal schemas
+export const createGoalSchema = z.object({
+  athleteId: z.string().uuid('ID athlète invalide'),
+  title: z.string().min(1, 'Titre requis').max(200),
+  description: z.string().max(1000).optional(),
+  goalType: z.string().min(1, 'Type objectif requis').max(50),
+  targetValue: z.string().max(100).optional(),
+  targetDate: z.string().optional(),
+  priority: z.number().int().min(1).max(5).optional(),
+  raceName: z.string().max(200).optional(),
+  raceDistance: z.string().max(50).optional(),
+  raceLocation: z.string().max(200).optional(),
+  notes: z.string().max(1000).optional(),
+});
+
+export const updateGoalSchema = z.object({
+  title: z.string().min(1).max(200).optional(),
+  description: z.string().max(1000).optional(),
+  targetValue: z.string().max(100).optional(),
+  targetDate: z.string().optional(),
+  priority: z.number().int().min(1).max(5).optional(),
+  status: z.enum(['active', 'achieved', 'cancelled']).optional(),
+  progress: z.number().min(0).max(100).optional(),
+  notes: z.string().max(1000).optional(),
+  raceName: z.string().max(200).optional(),
+  raceDistance: z.string().max(50).optional(),
+  raceLocation: z.string().max(200).optional(),
+});
+
+// Training plan schemas
+export const createTrainingPlanSchema = z.object({
+  athleteId: z.string().uuid('ID athlète invalide'),
+  goalId: z.string().uuid().optional(),
+  name: z.string().min(1, 'Nom requis').max(200),
+  description: z.string().max(1000).optional(),
+  startDate: z.string().datetime('Date début invalide'),
+  endDate: z.string().datetime('Date fin invalide'),
+  planType: z.string().max(50).optional(),
+  weeklyVolumeProgression: z.any().optional(), // JSON array
+  notes: z.string().max(2000).optional(),
+});
+
+export const updateTrainingPlanSchema = z.object({
+  name: z.string().min(1).max(200).optional(),
+  description: z.string().max(1000).optional(),
+  endDate: z.string().datetime().optional(),
+  status: z.enum(['active', 'completed', 'cancelled']).optional(),
+  notes: z.string().max(2000).optional(),
 });
 
 // Helper function to validate request body

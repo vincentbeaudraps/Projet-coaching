@@ -6,6 +6,7 @@ import multer from 'multer';
 import { parseGPX } from '../utils/gpxParser.js';
 import { asyncHandler, NotFoundError, BadRequestError } from '../middleware/errorHandler.js';
 import { athleteService } from '../services/athleteService.js';
+import { createCompletedActivitySchema, updateCompletedActivitySchema, validateRequest } from '../utils/validation.js';
 
 const router: Router = express.Router();
 const upload = multer({ storage: multer.memoryStorage() });
@@ -64,6 +65,7 @@ router.get('/coach/all', authenticateToken, asyncHandler(async (req: Request, re
 
 // Create activity manually
 router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const validatedData = validateRequest(createCompletedActivitySchema, req.body);
   const {
     athleteId,
     activityType,
@@ -78,11 +80,7 @@ router.post('/', authenticateToken, asyncHandler(async (req: Request, res: Respo
     avgSpeed,
     calories,
     notes,
-  } = req.body;
-
-  if (!athleteId || !activityType || !startDate) {
-    throw new BadRequestError('athleteId, activityType, and startDate are required');
-  }
+  } = validatedData;
 
   const activityId = generateId();
 
@@ -174,15 +172,19 @@ router.post('/upload-gpx', authenticateToken, upload.single('gpxFile'), asyncHan
 // Update activity
 router.put('/:activityId', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
   const { activityId } = req.params;
+  const validatedData = validateRequest(updateCompletedActivitySchema, req.body);
   const { 
     title, 
-    activity_type,
     duration,
     distance,
-    difficulty_rating, 
-    feeling_rating, 
-    athlete_notes 
-  } = req.body;
+    elevationGain,
+    avgHeartRate,
+    maxHeartRate,
+    avgPace,
+    avgSpeed,
+    calories,
+    notes
+  } = validatedData;
 
   const updates: string[] = [];
   const values: any[] = [];
@@ -192,10 +194,6 @@ router.put('/:activityId', authenticateToken, asyncHandler(async (req: Request, 
     updates.push(`title = $${paramIndex++}`);
     values.push(title);
   }
-  if (activity_type !== undefined) {
-    updates.push(`activity_type = $${paramIndex++}`);
-    values.push(activity_type);
-  }
   if (duration !== undefined) {
     updates.push(`duration = $${paramIndex++}`);
     values.push(duration);
@@ -204,17 +202,33 @@ router.put('/:activityId', authenticateToken, asyncHandler(async (req: Request, 
     updates.push(`distance = $${paramIndex++}`);
     values.push(distance);
   }
-  if (difficulty_rating !== undefined) {
-    updates.push(`difficulty_rating = $${paramIndex++}`);
-    values.push(difficulty_rating);
+  if (elevationGain !== undefined) {
+    updates.push(`elevation_gain = $${paramIndex++}`);
+    values.push(elevationGain);
   }
-  if (feeling_rating !== undefined) {
-    updates.push(`feeling_rating = $${paramIndex++}`);
-    values.push(feeling_rating);
+  if (avgHeartRate !== undefined) {
+    updates.push(`avg_heart_rate = $${paramIndex++}`);
+    values.push(avgHeartRate);
   }
-  if (athlete_notes !== undefined) {
-    updates.push(`athlete_notes = $${paramIndex++}`);
-    values.push(athlete_notes);
+  if (maxHeartRate !== undefined) {
+    updates.push(`max_heart_rate = $${paramIndex++}`);
+    values.push(maxHeartRate);
+  }
+  if (avgPace !== undefined) {
+    updates.push(`avg_pace = $${paramIndex++}`);
+    values.push(avgPace);
+  }
+  if (avgSpeed !== undefined) {
+    updates.push(`avg_speed = $${paramIndex++}`);
+    values.push(avgSpeed);
+  }
+  if (calories !== undefined) {
+    updates.push(`calories = $${paramIndex++}`);
+    values.push(calories);
+  }
+  if (notes !== undefined) {
+    updates.push(`notes = $${paramIndex++}`);
+    values.push(notes);
   }
 
   if (updates.length === 0) {
