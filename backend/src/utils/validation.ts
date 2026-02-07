@@ -171,11 +171,11 @@ export const createVolumeSchema = z.object({
 
 // Invitation schemas
 export const validateInvitationSchema = z.object({
-  code: z.string().min(1, 'Code requis').max(20, 'Code invalide'),
+  code: z.string().min(1, 'Code requis').max(50, 'Code invalide'),
 });
 
 export const useInvitationSchema = z.object({
-  code: z.string().min(1, 'Code requis').max(20, 'Code invalide'),
+  code: z.string().min(1, 'Code requis').max(50, 'Code invalide'),
   userId: z.string().uuid('ID utilisateur invalide'),
 });
 
@@ -232,7 +232,7 @@ export const updateGoalSchema = z.object({
   raceLocation: z.string().max(200).optional(),
 });
 
-// Training plan schemas
+// Training Plan schemas
 export const createTrainingPlanSchema = z.object({
   athleteId: z.string().uuid('ID athlète invalide'),
   goalId: z.string().uuid().optional(),
@@ -248,6 +248,7 @@ export const createTrainingPlanSchema = z.object({
 export const updateTrainingPlanSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   description: z.string().max(1000).optional(),
+  startDate: z.string().datetime().optional(),
   endDate: z.string().datetime().optional(),
   status: z.enum(['active', 'completed', 'cancelled']).optional(),
   notes: z.string().max(2000).optional(),
