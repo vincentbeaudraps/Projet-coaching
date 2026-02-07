@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { authService } from '../services/api';
 import { useAuthStore } from '../store/authStore';
+import { useApiSubmit } from '../hooks/useApi';
 import '../styles/Auth.css';
 
 function RegisterPage() {
@@ -15,10 +16,20 @@ function RegisterPage() {
     injuries: '',
     trainingDaysPerWeek: '3'
   });
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { login } = useAuthStore();
+
+  const { submit: registerUser, loading, error } = useApiSubmit(async (data: typeof formData) => {
+    const response = await authService.register(
+      data.email,
+      data.name,
+      data.password,
+      'athlete'
+    );
+    login(response.data.user, response.data.token);
+    navigate('/dashboard');
+    return response;
+  });
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
@@ -27,23 +38,7 @@ function RegisterPage() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setError('');
-    setLoading(true);
-
-    try {
-      const response = await authService.register(
-        formData.email,
-        formData.name,
-        formData.password,
-        'athlete'
-      );
-      login(response.data.user, response.data.token);
-      navigate('/dashboard');
-    } catch (err: any) {
-      setError(err.response?.data?.message || 'Registration failed');
-    } finally {
-      setLoading(false);
-    }
+    await registerUser(formData);
   };
 
   return (
