@@ -36,275 +36,233 @@ router.get('/', authenticateToken, authorizeRole('coach'), asyncHandler(async (r
 }));
 
 // Add athlete for coach
-router.post('/', authenticateToken, authorizeRole('coach'), async (req, res) => {
-  try {
-    const { userId, age, level, goals } = req.body;
-    const coachId = req.userId;
+router.post('/', authenticateToken, authorizeRole('coach'), asyncHandler(async (req: Request, res: Response) => {
+  const { userId, age, level, goals } = req.body;
+  const coachId = req.userId!;
 
-    const result = await client.query(
-      `INSERT INTO athletes (user_id, coach_id, age, level, goals) 
-       VALUES ($1, $2, $3, $4, $5) 
-       RETURNING *`,
-      [userId, coachId, age, level, goals]
-    );
-
-    res.status(201).json(result.rows[0]);
-  } catch (error) {
-    console.error('Add athlete error:', error);
-    res.status(500).json({ message: 'Failed to add athlete' });
+  if (!userId) {
+    throw new BadRequestError('User ID is required');
   }
-});
+
+  const result = await client.query(
+    `INSERT INTO athletes (user_id, coach_id, age, level, goals) 
+     VALUES ($1, $2, $3, $4, $5) 
+     RETURNING *`,
+    [userId, coachId, age, level, goals]
+  );
+
+  res.status(201).json(result.rows[0]);
+}));
 
 // Get athlete details
-router.get('/:athleteId', authenticateToken, async (req, res) => {
-  try {
-    const { athleteId } = req.params;
+router.get('/:athleteId', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const { athleteId } = req.params;
+  const userId = req.userId!;
+  const userRole = req.userRole!;
 
-    const result = await client.query(
-      `SELECT a.*, u.email as user_email, u.name as user_name 
-       FROM athletes a 
-       JOIN users u ON a.user_id = u.id 
-       WHERE a.id = $1`,
-      [athleteId]
-    );
+  // Verify access
+  await athleteService.verifyAccess(athleteId, userId, userRole);
 
-    if (result.rows.length === 0) {
-      return res.status(404).json({ message: 'Athlete not found' });
-    }
+  const result = await client.query(
+    `SELECT a.*, u.email as user_email, u.name as user_name 
+     FROM athletes a 
+     JOIN users u ON a.user_id = u.id 
+     WHERE a.id = $1`,
+    [athleteId]
+  );
 
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Fetch athlete error:', error);
-    res.status(500).json({ message: 'Failed to fetch athlete' });
+  if (!result.rows[0]) {
+    throw new NotFoundError('Athlete not found');
   }
-});
+
+  res.json(result.rows[0]);
+}));
 
 // Update athlete
-router.put('/:athleteId', authenticateToken, authenticateToken, async (req, res) => {
-  try {
-    const { athleteId } = req.params;
-    const { age, level, goals } = req.body;
+router.put('/:athleteId', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const { athleteId } = req.params;
+  const { age, level, goals } = req.body;
+  const userId = req.userId!;
+  const userRole = req.userRole!;
 
-    const result = await client.query(
-      `UPDATE athletes SET age = $1, level = $2, goals = $3 
-       WHERE id = $4 
-       RETURNING *`,
-      [age, level, goals, athleteId]
-    );
+  // Verify access
+  await athleteService.verifyAccess(athleteId, userId, userRole);
 
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Update athlete error:', error);
-    res.status(500).json({ message: 'Failed to update athlete' });
+  const result = await client.query(
+    `UPDATE athletes SET age = $1, level = $2, goals = $3 
+     WHERE id = $4 
+     RETURNING *`,
+    [age, level, goals, athleteId]
+  );
+
+  if (!result.rows[0]) {
+    throw new NotFoundError('Athlete not found');
   }
-});
+
+  res.json(result.rows[0]);
+}));
 
 // Create athlete account (creates user + athlete profile)
-router.post('/create-account', authenticateToken, authorizeRole('coach'), async (req, res) => {
-  try {
-    const { email, name, age, level, goals } = req.body;
-    const coachId = req.userId;
+router.post('/create-account', authenticateToken, authorizeRole('coach'), asyncHandler(async (req: Request, res: Response) => {
+  const { email, name, age, level, goals } = req.body;
+  const coachId = req.userId!;
 
-    if (!email || !name) {
-      return res.status(400).json({ message: 'Email and name are required' });
-    }
-
-    // Check if user already exists
-    const existingUser = await client.query(
-      'SELECT id FROM users WHERE email = $1',
-      [email]
-    );
-
-    if (existingUser.rows.length > 0) {
-      return res.status(400).json({ message: 'Un utilisateur avec cet email existe déjà' });
-    }
-
-    // Generate temporary password
-    const tempPassword = Math.random().toString(36).slice(-8);
-    const hashedPassword = await bcrypt.hash(tempPassword, 10);
-    const userId = generateId();
-
-    // Create user account
-    await client.query(
-      'INSERT INTO users (id, email, name, password_hash, role) VALUES ($1, $2, $3, $4, $5)',
-      [userId, email, name, hashedPassword, 'athlete']
-    );
-
-    // Create athlete profile
-    const athleteId = generateId();
-    const result = await client.query(
-      `INSERT INTO athletes (id, user_id, coach_id, age, level, goals) 
-       VALUES ($1, $2, $3, $4, $5, $6) 
-       RETURNING *`,
-      [athleteId, userId, coachId, age, level, goals]
-    );
-
-    // TODO: Send email with temporary password
-    console.log(`Temporary password for ${email}: ${tempPassword}`);
-
-    res.status(201).json({
-      athlete: result.rows[0],
-      message: 'Athlète créé avec succès',
-      tempPassword // In production, this should be sent via email
-    });
-  } catch (error) {
-    console.error('Create athlete account error:', error);
-    res.status(500).json({ message: 'Failed to create athlete account' });
+  if (!email || !name) {
+    throw new BadRequestError('Email and name are required');
   }
-});
+
+  // Check if user already exists
+  const existingUser = await athleteService.checkUserExists(email);
+  if (existingUser) {
+    throw new ConflictError('Un utilisateur avec cet email existe déjà');
+  }
+
+  // Generate temporary password
+  const tempPassword = Math.random().toString(36).slice(-8);
+  const hashedPassword = await bcrypt.hash(tempPassword, 10);
+  const userId = generateId();
+
+  // Create user account
+  await client.query(
+    'INSERT INTO users (id, email, name, password_hash, role) VALUES ($1, $2, $3, $4, $5)',
+    [userId, email, name, hashedPassword, 'athlete']
+  );
+
+  // Create athlete profile
+  const athleteId = generateId();
+  const result = await client.query(
+    `INSERT INTO athletes (id, user_id, coach_id, age, level, goals) 
+     VALUES ($1, $2, $3, $4, $5, $6) 
+     RETURNING *`,
+    [athleteId, userId, coachId, age, level, goals]
+  );
+
+  // TODO: Send email with temporary password
+  console.log(`Temporary password for ${email}: ${tempPassword}`);
+
+  res.status(201).json({
+    athlete: result.rows[0],
+    message: 'Athlète créé avec succès',
+    tempPassword // In production, this should be sent via email
+  });
+}));
 
 // Delete athlete
-router.delete('/:athleteId', authenticateToken, authorizeRole('coach'), async (req, res) => {
-  try {
-    const { athleteId } = req.params;
-    const coachId = req.userId;
+router.delete('/:athleteId', authenticateToken, authorizeRole('coach'), asyncHandler(async (req: Request, res: Response) => {
+  const { athleteId } = req.params;
+  const coachId = req.userId!;
 
-    // Verify that this athlete belongs to this coach
-    const athleteCheck = await client.query(
-      'SELECT user_id FROM athletes WHERE id = $1 AND coach_id = $2',
-      [athleteId, coachId]
-    );
+  // Verify that this athlete belongs to this coach
+  await athleteService.verifyCoachOwnership(athleteId, coachId);
 
-    if (athleteCheck.rows.length === 0) {
-      return res.status(404).json({ message: 'Athlete not found or unauthorized' });
-    }
+  const athleteCheck = await client.query(
+    'SELECT user_id FROM athletes WHERE id = $1',
+    [athleteId]
+  );
 
-    const userId = athleteCheck.rows[0].user_id;
-
-    // Delete athlete (will cascade delete sessions and performances)
-    await client.query('DELETE FROM athletes WHERE id = $1', [athleteId]);
-    
-    // Delete user account
-    await client.query('DELETE FROM users WHERE id = $1', [userId]);
-
-    res.json({ message: 'Athlete deleted successfully' });
-  } catch (error) {
-    console.error('Delete athlete error:', error);
-    res.status(500).json({ message: 'Failed to delete athlete' });
+  if (!athleteCheck.rows[0]) {
+    throw new NotFoundError('Athlete not found');
   }
-});
+
+  const userId = athleteCheck.rows[0].user_id;
+
+  // Delete athlete (will cascade delete sessions and performances)
+  await client.query('DELETE FROM athletes WHERE id = $1', [athleteId]);
+  
+  // Delete user account
+  await client.query('DELETE FROM users WHERE id = $1', [userId]);
+
+  res.json({ message: 'Athlete deleted successfully' });
+}));
 
 // Update athlete metrics
-router.put('/:athleteId/metrics', authenticateToken, async (req, res) => {
-  try {
-    const { athleteId } = req.params;
-    const userId = req.userId;
-    const userRole = req.userRole;
-    const {
-      max_heart_rate,
-      vma,
-      resting_heart_rate,
-      weight,
-      vo2max,
-      lactate_threshold_pace,
-      notes
-    } = req.body;
+router.put('/:athleteId/metrics', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const { athleteId } = req.params;
+  const userId = req.userId!;
+  const userRole = req.userRole!;
+  const {
+    max_heart_rate,
+    vma,
+    resting_heart_rate,
+    weight,
+    vo2max,
+    lactate_threshold_pace,
+    notes
+  } = req.body;
 
-    // Verify authorization: coach owns athlete OR athlete is updating their own profile
-    const athleteCheck = await client.query(
-      'SELECT id, user_id, coach_id FROM athletes WHERE id = $1',
-      [athleteId]
-    );
+  // Verify authorization: coach owns athlete OR athlete is updating their own profile
+  await athleteService.verifyAccess(athleteId, userId, userRole);
 
-    if (athleteCheck.rows.length === 0) {
-      return res.status(404).json({ message: 'Athlete not found' });
-    }
+  // Update athlete metrics
+  const result = await client.query(
+    `UPDATE athletes 
+     SET max_heart_rate = $1,
+         vma = $2,
+         resting_heart_rate = $3,
+         weight = $4,
+         vo2max = $5,
+         lactate_threshold_pace = $6,
+         metrics_updated_at = CURRENT_TIMESTAMP
+     WHERE id = $7
+     RETURNING *`,
+    [
+      max_heart_rate || null,
+      vma || null,
+      resting_heart_rate || null,
+      weight || null,
+      vo2max || null,
+      lactate_threshold_pace || null,
+      athleteId
+    ]
+  );
 
-    const athlete = athleteCheck.rows[0];
-    const isCoach = userRole === 'coach' && athlete.coach_id === userId;
-    const isOwnProfile = userRole === 'athlete' && athlete.user_id === userId;
+  if (!result.rows[0]) {
+    throw new NotFoundError('Athlete not found');
+  }
 
-    if (!isCoach && !isOwnProfile) {
-      return res.status(403).json({ message: 'Unauthorized to update these metrics' });
-    }
-
-    // Update athlete metrics
-    const result = await client.query(
-      `UPDATE athletes 
-       SET max_heart_rate = $1,
-           vma = $2,
-           resting_heart_rate = $3,
-           weight = $4,
-           vo2max = $5,
-           lactate_threshold_pace = $6,
-           metrics_updated_at = CURRENT_TIMESTAMP
-       WHERE id = $7
-       RETURNING *`,
+  // Save to history if notes provided or significant metrics changed
+  if (notes || max_heart_rate || vma || weight) {
+    const historyId = generateId();
+    await client.query(
+      `INSERT INTO athlete_metrics_history 
+       (id, athlete_id, max_heart_rate, vma, resting_heart_rate, weight, vo2max, lactate_threshold_pace, notes)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
       [
+        historyId,
+        athleteId,
         max_heart_rate || null,
         vma || null,
         resting_heart_rate || null,
         weight || null,
         vo2max || null,
         lactate_threshold_pace || null,
-        athleteId
+        notes || null
       ]
     );
-
-    // Save to history if notes provided or significant metrics changed
-    if (notes || max_heart_rate || vma || weight) {
-      const historyId = generateId();
-      await client.query(
-        `INSERT INTO athlete_metrics_history 
-         (id, athlete_id, max_heart_rate, vma, resting_heart_rate, weight, vo2max, lactate_threshold_pace, notes)
-         VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
-        [
-          historyId,
-          athleteId,
-          max_heart_rate || null,
-          vma || null,
-          resting_heart_rate || null,
-          weight || null,
-          vo2max || null,
-          lactate_threshold_pace || null,
-          notes || null
-        ]
-      );
-    }
-
-    res.json(result.rows[0]);
-  } catch (error) {
-    console.error('Update athlete metrics error:', error);
-    res.status(500).json({ message: 'Failed to update athlete metrics' });
   }
-});
+
+  res.json(result.rows[0]);
+}));
 
 // Get athlete metrics history
-router.get('/:athleteId/metrics-history', authenticateToken, async (req, res) => {
-  try {
-    const { athleteId } = req.params;
+router.get('/:athleteId/metrics-history', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const { athleteId } = req.params;
+  const userId = req.userId!;
+  const userRole = req.userRole!;
 
-    // Verify access (coach or the athlete themselves)
-    const athleteCheck = await client.query(
-      'SELECT coach_id, user_id FROM athletes WHERE id = $1',
-      [athleteId]
-    );
+  // Verify access (coach or the athlete themselves)
+  await athleteService.verifyAccess(athleteId, userId, userRole);
 
-    if (athleteCheck.rows.length === 0) {
-      return res.status(404).json({ message: 'Athlete not found' });
-    }
+  const result = await client.query(
+    `SELECT * FROM athlete_metrics_history
+     WHERE athlete_id = $1
+     ORDER BY recorded_at DESC
+     LIMIT 50`,
+    [athleteId]
+  );
 
-    const { coach_id, user_id } = athleteCheck.rows[0];
-    
-    // Check if user is the coach or the athlete
-    if (req.userId !== coach_id && req.userId !== user_id) {
-      return res.status(403).json({ message: 'Unauthorized' });
-    }
-
-    const result = await client.query(
-      `SELECT * FROM athlete_metrics_history
-       WHERE athlete_id = $1
-       ORDER BY recorded_at DESC
-       LIMIT 50`,
-      [athleteId]
-    );
-
-    res.json(result.rows);
-  } catch (error) {
-    console.error('Fetch metrics history error:', error);
-    res.status(500).json({ message: 'Failed to fetch metrics history' });
-  }
-});
+  res.json(result.rows);
+}));
 
 // ============================
 // ENRICHED PROFILE ROUTES

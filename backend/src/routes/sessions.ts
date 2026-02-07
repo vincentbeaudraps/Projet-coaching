@@ -1,84 +1,87 @@
-import express, { Router } from 'express';
+import express, { Router, Request, Response } from 'express';
 import client from '../database/connection.js';
 import { authenticateToken, authorizeRole } from '../middleware/auth.js';
 import { generateId } from '../utils/id.js';
 import { exportToTCX, exportToGarminJSON, exportToText, exportToMarkdown } from '../utils/workoutExporter.js';
 import { createNotification } from './notifications.js';
 import emailService from '../utils/emailService.js';
+import { asyncHandler, NotFoundError, BadRequestError } from '../middleware/errorHandler.js';
+import { athleteService } from '../services/athleteService.js';
 
 const router: Router = express.Router();
 
 // Create training session
-router.post('/', authenticateToken, authorizeRole('coach'), async (req, res) => {
-  try {
-    const { athleteId, title, description, type, distance, duration, intensity, startDate, blocks, notes } = req.body;
-    const coachId = req.userId;
-    const sessionId = generateId(); // Générer un ID unique
+router.post('/', authenticateToken, authorizeRole('coach'), asyncHandler(async (req: Request, res: Response) => {
+  const { athleteId, title, description, type, distance, duration, intensity, startDate, blocks, notes } = req.body;
+  const coachId = req.userId!;
+  const sessionId = generateId();
 
-    // Insérer la séance
-    await client.query(
-      `INSERT INTO training_sessions 
-       (id, coach_id, athlete_id, title, description, type, distance, duration, intensity, start_date, blocks, notes) 
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
-      [sessionId, coachId, athleteId, title, description, type, distance, duration, intensity, startDate, blocks, notes]
-    );
-
-    // Récupérer la séance créée
-    const result = await client.query(
-      'SELECT * FROM training_sessions WHERE id = $1',
-      [sessionId]
-    );
-
-    // Get athlete's user_id for notification
-    const athleteResult = await client.query(
-      'SELECT a.user_id, u.name as athlete_name, u.email as athlete_email FROM athletes a JOIN users u ON a.user_id = u.id WHERE a.id = $1',
-      [athleteId]
-    );
-
-    if (athleteResult.rows.length > 0) {
-      const athleteUserId = athleteResult.rows[0].user_id;
-      const athleteName = athleteResult.rows[0].athlete_name;
-      const athleteEmail = athleteResult.rows[0].athlete_email;
-      
-      // Get coach name
-      const coachResult = await client.query(
-        'SELECT name FROM users WHERE id = $1',
-        [coachId]
-      );
-      const coachName = coachResult.rows[0]?.name || 'Ton coach';
-
-      // Create notification for athlete
-      await createNotification(
-        athleteUserId,
-        'new_session',
-        '📅 Nouvelle séance programmée',
-        `Ton coach t'a assigné une nouvelle séance : ${title}`,
-        `/dashboard`,
-        sessionId
-      );
-
-      // Send email notification
-      await emailService.sendNewSessionEmail(
-        athleteEmail,
-        athleteName,
-        title,
-        new Date(startDate).toLocaleDateString('fr-FR', { 
-          weekday: 'long', 
-          year: 'numeric', 
-          month: 'long', 
-          day: 'numeric' 
-        }),
-        coachName
-      );
-    }
-
-    res.status(201).json(result.rows[0]);
-  } catch (error: any) {
-    console.error('Create session error:', error);
-    console.error('Error details:', error.message);
-    res.status(500).json({ message: 'Failed to create session', error: error.message });
+  if (!athleteId || !title || !startDate) {
+    throw new BadRequestError('AthleteId, title, and startDate are required');
   }
-});
+
+  // Verify coach owns this athlete
+  await athleteService.verifyCoachOwnership(athleteId, coachId);
+
+  // Insérer la séance
+  await client.query(
+    `INSERT INTO training_sessions 
+     (id, coach_id, athlete_id, title, description, type, distance, duration, intensity, start_date, blocks, notes) 
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+    [sessionId, coachId, athleteId, title, description, type, distance, duration, intensity, startDate, blocks, notes]
+  );
+
+  // Récupérer la séance créée
+  const result = await client.query(
+    'SELECT * FROM training_sessions WHERE id = $1',
+    [sessionId]
+  );
+
+  // Get athlete's user_id for notification
+  const athleteResult = await client.query(
+    'SELECT a.user_id, u.name as athlete_name, u.email as athlete_email FROM athletes a JOIN users u ON a.user_id = u.id WHERE a.id = $1',
+    [athleteId]
+  );
+
+  if (athleteResult.rows.length > 0) {
+    const athleteUserId = athleteResult.rows[0].user_id;
+    const athleteName = athleteResult.rows[0].athlete_name;
+    const athleteEmail = athleteResult.rows[0].athlete_email;
+    
+    // Get coach name
+    const coachResult = await client.query(
+      'SELECT name FROM users WHERE id = $1',
+      [coachId]
+    );
+    const coachName = coachResult.rows[0]?.name || 'Ton coach';
+
+    // Create notification for athlete
+    await createNotification(
+      athleteUserId,
+      'new_session',
+      '📅 Nouvelle séance programmée',
+      `Ton coach t'a assigné une nouvelle séance : ${title}`,
+      `/dashboard`,
+      sessionId
+    );
+
+    // Send email notification
+    await emailService.sendNewSessionEmail(
+      athleteEmail,
+      athleteName,
+      title,
+      new Date(startDate).toLocaleDateString('fr-FR', { 
+        weekday: 'long', 
+        year: 'numeric', 
+        month: 'long', 
+        day: 'numeric' 
+      }),
+      coachName
+    );
+  }
+
+  res.status(201).json(result.rows[0]);
+}));
 
 // Get sessions for athlete
 router.get('/athlete/:athleteId', authenticateToken, async (req, res) => {
