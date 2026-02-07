@@ -5,6 +5,7 @@ import rateLimit from 'express-rate-limit';
 import dotenv from 'dotenv';
 import { connectDB } from './database/connection.js';
 import { initializeDatabase } from './database/init.js';
+import { errorMiddleware } from './middleware/errorHandler.js';
 import authRoutes from './routes/auth.js';
 import athletesRoutes from './routes/athletes.js';
 import sessionsRoutes from './routes/sessions.js';
@@ -102,7 +103,6 @@ app.use((req, res) => {
 });
 
 // Error handling middleware - doit être en dernier
-import { errorMiddleware } from './middleware/errorHandler.js';
 app.use(errorMiddleware);
 
 async function startServer() {
