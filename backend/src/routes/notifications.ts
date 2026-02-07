@@ -3,139 +3,110 @@ import { Router, Request, Response } from 'express';
 import { client } from '../database/connection.js';
 import { authenticateToken } from '../middleware/auth.js';
 import { generateId } from '../utils/id.js';
+import { asyncHandler } from '../middleware/errorHandler.js';
 
 const router = Router();
 
 // ============================================
 // GET /api/notifications - Get user's notifications
 // ============================================
-router.get('/', authenticateToken, async (req: Request, res: Response) => {
-  try {
-    const userId = req.userId;
-    const { unreadOnly } = req.query;
+router.get('/', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.userId!;
+  const { unreadOnly } = req.query;
 
-    let query = `
-      SELECT 
-        id, user_id, type, title, message, link, related_id, read, created_at
-      FROM notifications
-      WHERE user_id = $1
-    `;
+  let query = `
+    SELECT 
+      id, user_id, type, title, message, link, related_id, read, created_at
+    FROM notifications
+    WHERE user_id = $1
+  `;
 
-    if (unreadOnly === 'true') {
-      query += ` AND read = FALSE`;
-    }
-
-    query += ` ORDER BY created_at DESC LIMIT 50`;
-
-    const result = await client.query(query, [userId]);
-
-    res.json({
-      notifications: result.rows,
-      total: result.rows.length,
-      unreadCount: result.rows.filter((n: any) => !n.read).length
-    });
-  } catch (error) {
-    console.error('Error fetching notifications:', error);
-    res.status(500).json({ error: 'Failed to fetch notifications' });
+  if (unreadOnly === 'true') {
+    query += ` AND read = FALSE`;
   }
-});
+
+  query += ` ORDER BY created_at DESC LIMIT 50`;
+
+  const result = await client.query(query, [userId]);
+
+  res.json({
+    notifications: result.rows,
+    total: result.rows.length,
+    unreadCount: result.rows.filter((n: any) => !n.read).length
+  });
+}));
 
 // ============================================
 // GET /api/notifications/unread-count
 // ============================================
-router.get('/unread-count', authenticateToken, async (req: Request, res: Response) => {
-  try {
-    const userId = req.userId;
+router.get('/unread-count', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.userId!;
 
-    const result = await client.query(
-      'SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND read = FALSE',
-      [userId]
-    );
+  const result = await client.query(
+    'SELECT COUNT(*) as count FROM notifications WHERE user_id = $1 AND read = FALSE',
+    [userId]
+  );
 
-    res.json({ count: parseInt(result.rows[0].count) });
-  } catch (error) {
-    console.error('Error fetching unread count:', error);
-    res.status(500).json({ error: 'Failed to fetch unread count' });
-  }
-});
+  res.json({ count: parseInt(result.rows[0].count) });
+}));
 
 // ============================================
 // PUT /api/notifications/:id/read - Mark as read
 // ============================================
-router.put('/:id/read', authenticateToken, async (req: Request, res: Response) => {
-  try {
-    const userId = req.userId;
-    const { id } = req.params;
+router.put('/:id/read', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.userId!;
+  const { id } = req.params;
 
-    await client.query(
-      'UPDATE notifications SET read = TRUE WHERE id = $1 AND user_id = $2',
-      [id, userId]
-    );
+  await client.query(
+    'UPDATE notifications SET read = TRUE WHERE id = $1 AND user_id = $2',
+    [id, userId]
+  );
 
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error marking notification as read:', error);
-    res.status(500).json({ error: 'Failed to mark notification as read' });
-  }
-});
+  res.json({ success: true });
+}));
 
 // ============================================
 // PUT /api/notifications/read-all - Mark all as read
 // ============================================
-router.put('/read-all', authenticateToken, async (req: Request, res: Response) => {
-  try {
-    const userId = req.userId;
+router.put('/read-all', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.userId!;
 
-    await client.query(
-      'UPDATE notifications SET read = TRUE WHERE user_id = $1 AND read = FALSE',
-      [userId]
-    );
+  await client.query(
+    'UPDATE notifications SET read = TRUE WHERE user_id = $1 AND read = FALSE',
+    [userId]
+  );
 
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error marking all notifications as read:', error);
-    res.status(500).json({ error: 'Failed to mark all notifications as read' });
-  }
-});
+  res.json({ success: true });
+}));
 
 // ============================================
 // DELETE /api/notifications/:id - Delete notification
 // ============================================
-router.delete('/:id', authenticateToken, async (req: Request, res: Response) => {
-  try {
-    const userId = req.userId;
-    const { id } = req.params;
+router.delete('/:id', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.userId!;
+  const { id } = req.params;
 
-    await client.query(
-      'DELETE FROM notifications WHERE id = $1 AND user_id = $2',
-      [id, userId]
-    );
+  await client.query(
+    'DELETE FROM notifications WHERE id = $1 AND user_id = $2',
+    [id, userId]
+  );
 
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting notification:', error);
-    res.status(500).json({ error: 'Failed to delete notification' });
-  }
-});
+  res.json({ success: true });
+}));
 
 // ============================================
 // DELETE /api/notifications - Delete all notifications
 // ============================================
-router.delete('/', authenticateToken, async (req: Request, res: Response) => {
-  try {
-    const userId = req.userId;
+router.delete('/', authenticateToken, asyncHandler(async (req: Request, res: Response) => {
+  const userId = req.userId!;
 
-    await client.query(
-      'DELETE FROM notifications WHERE user_id = $1',
-      [userId]
-    );
+  await client.query(
+    'DELETE FROM notifications WHERE user_id = $1',
+    [userId]
+  );
 
-    res.json({ success: true });
-  } catch (error) {
-    console.error('Error deleting all notifications:', error);
-    res.status(500).json({ error: 'Failed to delete all notifications' });
-  }
-});
+  res.json({ success: true });
+}));
 
 // ============================================
 // Helper: Create notification (used by other routes)
