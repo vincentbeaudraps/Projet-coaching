@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { sessionsService, athletesService, activitiesService } from '../services/api';
 import { TrainingSession, Athlete, CompletedActivity } from '../types/index';
 import { showSuccess, showError, showWarning } from '../utils/toast.tsx';
@@ -7,38 +7,34 @@ import Calendar from '../components/Calendar';
 import CompletedActivitiesCalendar from '../components/CompletedActivitiesCalendar';
 import AddActivityForm from '../components/AddActivityForm';
 import Dashboard from '../components/Dashboard';
+import { useApi } from '../hooks/useApi';
 // import SessionFilters, { SessionFilters as FilterType } from '../components/SessionFilters';
 // import { useSessionFilters } from '../hooks/useSessionFilters';
 import '../styles/Dashboard.css';
 
 function CoachDashboard() {
-  const [athletes, setAthletes] = useState<Athlete[]>([]);
-  const [sessions, setSessions] = useState<TrainingSession[]>([]);
-  const [activities, setActivities] = useState<CompletedActivity[]>([]);
+  const { data: athletes, loading: loadingAthletes, refetch: refetchAthletes } = useApi<Athlete[]>(
+    () => athletesService.getAll().then(res => res.data),
+    []
+  );
+  
+  const { data: sessions, loading: loadingSessions, refetch: refetchSessions } = useApi<TrainingSession[]>(
+    () => sessionsService.getAll().then(res => res.data),
+    []
+  );
+  
+  const { data: activities, loading: loadingActivities, refetch: refetchActivities } = useApi<CompletedActivity[]>(
+    () => activitiesService.getAllForCoach().then(res => res.data),
+    []
+  );
+  
   const [selectedAthleteId, setSelectedAthleteId] = useState<string | null>(null);
-  const [loading, setLoading] = useState(true);
   const [uploadingGPX, setUploadingGPX] = useState(false);
-
-  useEffect(() => {
-    loadData();
-  }, []);
+  
+  const loading = loadingAthletes || loadingSessions || loadingActivities;
 
   const loadData = async () => {
-    setLoading(true);
-    try {
-      const [athletesRes, sessionsRes, activitiesRes] = await Promise.all([
-        athletesService.getAll(),
-        sessionsService.getAll(),
-        activitiesService.getAllForCoach(),
-      ]);
-      setAthletes(athletesRes.data);
-      setSessions(sessionsRes.data);
-      setActivities(activitiesRes.data);
-    } catch (error) {
-      console.error('Error loading data:', error);
-    } finally {
-      setLoading(false);
-    }
+    await Promise.all([refetchAthletes(), refetchSessions(), refetchActivities()]);
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -64,14 +60,14 @@ function CoachDashboard() {
 
   // Filtrer les séances selon l'athlète sélectionné
   const filteredSessions = selectedAthleteId
-    ? sessions.filter((session) => session.athlete_id === selectedAthleteId)
-    : sessions;
+    ? (sessions || []).filter((session) => session.athlete_id === selectedAthleteId)
+    : (sessions || []);
 
   const filteredActivities = selectedAthleteId
-    ? activities.filter((activity) => activity.athlete_id === selectedAthleteId)
-    : activities;
+    ? (activities || []).filter((activity) => activity.athlete_id === selectedAthleteId)
+    : (activities || []);
 
-  const selectedAthlete = athletes.find((a) => a.id === selectedAthleteId);
+  const selectedAthlete = athletes?.find((a) => a.id === selectedAthleteId);
 
   if (loading) {
     return (
@@ -89,7 +85,7 @@ function CoachDashboard() {
       <Header />
       
       <div className="dashboard-container">
-        <Dashboard athletes={athletes} sessions={sessions} />
+        <Dashboard athletes={athletes || []} sessions={sessions || []} />
         
         <div className="calendar-section">
           <h2 className="section-title">📅 Calendrier des Séances</h2>
@@ -103,7 +99,7 @@ function CoachDashboard() {
               className="athlete-select-dropdown"
             >
               <option value="">Tous les athlètes</option>
-              {athletes.map((athlete) => {
+              {(athletes || []).map((athlete) => {
                 const athleteName = athlete.first_name && athlete.last_name
                   ? `${athlete.first_name} ${athlete.last_name}`
                   : (athlete as any).user_name || athlete.name || 'Athlète';
@@ -143,7 +139,7 @@ function CoachDashboard() {
                 {uploadingGPX && <span className="uploading-indicator">⏳ Import en cours...</span>}
                 
                 <AddActivityForm 
-                  athletes={athletes} 
+                  athletes={athletes || []} 
                   onActivityAdded={loadData}
                   preselectedAthleteId={selectedAthleteId}
                 />
@@ -153,10 +149,17 @@ function CoachDashboard() {
           
           <div className="dual-calendar-view">
             <div className="calendar-column">
-              <Calendar sessions={filteredSessions} athletes={athletes} setSessions={setSessions} />
+              <Calendar 
+                sessions={filteredSessions} 
+                athletes={athletes || undefined} 
+                setSessions={async () => { await refetchSessions(); }} 
+              />
             </div>
             <div className="calendar-column">
-              <CompletedActivitiesCalendar activities={filteredActivities} athletes={athletes} />
+              <CompletedActivitiesCalendar 
+                activities={filteredActivities} 
+                athletes={athletes || undefined} 
+              />
             </div>
           </div>
         </div>

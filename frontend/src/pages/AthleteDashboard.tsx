@@ -6,21 +6,30 @@ import { showSuccess, showError } from '../utils/toast.tsx';
 import Header from '../components/Header';
 import Calendar from '../components/Calendar';
 import CompletedActivitiesCalendar from '../components/CompletedActivitiesCalendar';
+import { useApi } from '../hooks/useApi';
 import '../styles/Dashboard.css';
 
 function AthleteDashboard() {
   const user = useAuthStore((state) => state.user);
-  const [sessions, setSessions] = useState<TrainingSession[]>([]);
-  const [completedActivities, setCompletedActivities] = useState<CompletedActivity[]>([]);
   const [athleteId, setAthleteId] = useState<string>('');
-  const [loading, setLoading] = useState(true);
+  
+  const { data: sessions, loading: loadingSessions, refetch: refetchSessions } = useApi<TrainingSession[]>(
+    () => athleteId ? sessionsService.getForAthlete(athleteId).then(res => res.data) : Promise.resolve([]),
+    [athleteId]
+  );
+  
+  const { data: completedActivities, loading: loadingActivities, refetch: refetchActivities } = useApi<CompletedActivity[]>(
+    () => athleteId ? activitiesService.getForAthlete(athleteId).then(res => res.data) : Promise.resolve([]),
+    [athleteId]
+  );
+  
+  const loading = loadingSessions || loadingActivities;
 
   useEffect(() => {
     loadAthleteData();
   }, []);
 
   const loadAthleteData = async () => {
-    setLoading(true);
     try {
       // Récupérer le profil de l'athlète connecté via la route /me
       const athleteRes = await athletesService.getMe();
@@ -28,29 +37,14 @@ function AthleteDashboard() {
       
       if (athlete) {
         setAthleteId(athlete.id);
-        await loadData(athlete.id);
       }
     } catch (error) {
       console.error('Error loading athlete data:', error);
-    } finally {
-      setLoading(false);
     }
   };
 
-  const loadData = async (athleteIdParam?: string) => {
-    const targetAthleteId = athleteIdParam || athleteId;
-    if (!targetAthleteId) return;
-
-    try {
-      const [sessionsRes, activitiesRes] = await Promise.all([
-        sessionsService.getForAthlete(targetAthleteId),
-        activitiesService.getForAthlete(targetAthleteId),
-      ]);
-      setSessions(sessionsRes.data);
-      setCompletedActivities(activitiesRes.data);
-    } catch (error) {
-      console.error('Error loading data:', error);
-    }
+  const loadData = async () => {
+    await Promise.all([refetchSessions(), refetchActivities()]);
   };
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -109,10 +103,10 @@ function AthleteDashboard() {
             <div className="calendar-header">
               <h2>📋 Séances Programmées</h2>
               <p className="calendar-subtitle">
-                {sessions.length} séance{sessions.length > 1 ? 's' : ''} planifiée{sessions.length > 1 ? 's' : ''}
+                {(sessions || []).length} séance{(sessions || []).length > 1 ? 's' : ''} planifiée{(sessions || []).length > 1 ? 's' : ''}
               </p>
             </div>
-            <Calendar sessions={sessions} />
+            <Calendar sessions={sessions || []} />
           </div>
 
           {/* Calendrier des activités réalisées */}
@@ -120,11 +114,11 @@ function AthleteDashboard() {
             <div className="calendar-header">
               <h2>✅ Activités Réalisées</h2>
               <p className="calendar-subtitle">
-                {completedActivities.length} activité{completedActivities.length > 1 ? 's' : ''} enregistrée{completedActivities.length > 1 ? 's' : ''}
+                {(completedActivities || []).length} activité{(completedActivities || []).length > 1 ? 's' : ''} enregistrée{(completedActivities || []).length > 1 ? 's' : ''}
               </p>
             </div>
             <CompletedActivitiesCalendar
-              activities={completedActivities}
+              activities={completedActivities || []}
               onActivityUpdated={() => loadData()}
             />
           </div>
